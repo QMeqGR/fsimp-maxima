@@ -1,0 +1,88 @@
+load("fsimp.lisp");
+
+/*
+Adapted from David Scherfgen's dssimp.mac code.
+
+Try a simulated annealing type approach:
+smaller --> always take it
+bigger --> take it if the change is smaller than say 30% larger
+
+How to order the operations? A before B always, etc...
+For example, expand should always be before combine, etc.
+
+*/
+
+fsimp(expr, r) :=
+    block([exprSize, smallestExpr, smallestExprSize, simpdExpr,
+      simpdExprSize,origExprSize,L,loopmax:2,sizefactor:0.8,
+      fpprintprec:5],
+      if fsdebug=1 then print("sizefactor: ",sizefactor),
+      origExprSize: exprSize : conssize(expr),
+      if fsdebug=1 then print("original expression size: ",exprSize),
+      smallestExpr : expr,
+      smallestExprSize : exprSize,
+
+      simpdExpr : expr,
+      simpdExprSize : exprSize,
+      for L: 1 thru loopmax do
+      block(
+         if fsdebug=1 then print("-------------------------- loopcnt=",L),
+         if L > loopmax then return(expr),
+
+         block(
+            for i : 1 thru length(r) do
+            block(
+             /* always combine after every simp function */
+             simpdExpr : combine( r[i](smallestExpr) ),
+             simpdExprSize : conssize(simpdExpr),
+             if fsdebug=1 then print(r[i],"-- new size -->",simpdExprSize),
+
+             /* if the expression is smaller always take the step */
+             if simpdExprSize < exprSize then
+             block(
+                 smallestExpr : simpdExpr,
+                 smallestExprSize : simpdExprSize,
+                 if fsdebug=1 then print(">>>>> redefining smallestExpr: ",smallestExprSize),
+                 expr : smallestExpr,
+                 exprSize : smallestExprSize
+             ),
+             /* only take slightly larger expressions
+                but never return them */
+             if simpdExprSize > smallestExprSize then
+             block([t1],
+               t1: (simpdExprSize - smallestExprSize) / smallestExprSize,
+               if fsdebug=1 then print("t1=",float(t1)),
+               if t1 < sizefactor then
+               block(
+                 if fsdebug=1 then print(">>>>>> trying bigger expr"),
+                 smallestExpr : simpdExpr,
+                 smallestExprSize : simpdExprSize
+             ))
+         )
+       )
+     ),
+   if fsdebug=1 then print("final expr size: ",conssize(expr)),
+   return(expr)
+);
+
+fsimpall(expr) := block([
+   trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,cosh,sinh,acosh,asinh,tanh,atanh],
+   trigflag:0,expflag:0,
+   triglist:[trigsimp,trigreduce,trigrat],
+   loglist:[logcontract],
+   explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
+   simplist:[resimplify, expand, combine, radcan,
+            rootscontract, xthru, multthru, factor] ],
+
+  for i: 1 thru length(trigfuns) do
+    if freeof(trigfuns[i],expr)=false then (trigflag:1,expflag:1),
+  if freeof(exp,expr)=false then (trigflag:1,expflag:1),
+  if freeof(%e,expr)=false then (trigflag:1,expflag:1),
+  if trigflag=1 then simplist: append(triglist,simplist),
+  if expflag=1 then simplist: append(explist,simplist),
+  if freeof(log,expr)=false then simplist:append(loglist,simplist),
+  if fsdebug=1 then disp(simplist),
+  fsimp(expr, simplist)
+  );
+
+alias(fullsimp,fsimpall);
