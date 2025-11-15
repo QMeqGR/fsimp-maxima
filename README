@@ -1,0 +1,15 @@
+Nov 15 2025
+version 0.0.1
+
+This code implements a simplification routine for Maxima CAS
+expressions using the core simplification routines for expressions
+invovling trigonometric, logarithmic, exponential, polynomial and
+other functions.
+
+The algorithm used in fullsimp is a poor-man's kind of simulated
+annealing algorithm. It's poor-man's because it isn't really the
+simulated annealing algorithm, but rather simply allows intermediate
+expression lenghts to become slightly larger while searching for a
+smaller and simpler expression.
+
+Eric Majzoub

@@ -1,5 +1,7 @@
 load("fsimp.lisp");
 
+fsimp_ver:"v0.0.1"$
+
 /*
 Adapted from David Scherfgen's dssimp.mac code.
 
