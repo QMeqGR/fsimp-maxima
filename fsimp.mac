@@ -73,7 +73,7 @@ fsimpall(expr) := block([
    triglist:[trigsimp,trigreduce,trigrat],
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
-   simplist:[resimplify, expand, combine, radcan,
+   simplist:[resimplify, expand, combine, radcan, ratsimp,
             rootscontract, xthru, multthru, factor] ],
 
   for i: 1 thru length(trigfuns) do
@@ -88,3 +88,5 @@ fsimpall(expr) := block([
   );
 
 alias(fullsimp,fsimpall);
+declare(fsimpall,evfun);
+declare(fullsimp,evfun);
