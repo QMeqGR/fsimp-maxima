@@ -1,0 +1,72 @@
+/*
+;;  Author Eric Majzoub, Department of Physics and Astronomy
+;;  University of Missouri, St. Louis
+;;  Copyright (C) 2024 Eric Majzoub
+
+;;  This program is free software; you can redistribute it and/or modify 
+;;  it under the terms of the GNU General Public License as published by         
+;;  the Free Software Foundation; either version 2 of the License, or            
+;;  (at your option) any later version.                                  
+                                                                                 
+;;  This program is distributed in the hope that it will be useful,              
+;;  but WITHOUT ANY WARRANTY; without even the implied warranty of               
+;;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
+;;  GNU General Public License for more details.         
+
+*/
+
+matchdeclare([a,b],true)$
+/* half angle formulae */
+defrule(tr001, b*(1-cos(a))/2 , b*sin(a/2)^2 )$
+defrule(tr002, b*(1+cos(a))/2 , b*cos(a/2)^2 )$
+defrule(tr003, b*(1-cos(a))/sin(a) , b*tan(a/2) )$
+defrule(tr004, b*(1+cos(a))/sin(a) , b*cot(a/2) )$
+defrule(tr005, b*2/(1+cos(a)) , b*sec(a/2)^2 )$
+defrule(tr006, b*2/(1-cos(a)) , b*csc(a/2)^2 )$
+
+defrule(tr007, b*(-1+cos(a))/2 , -b*sin(a/2)^2 )$
+defrule(tr008, b*(-1-cos(a))/2 , -b*cos(a/2)^2 )$
+defrule(tr009, b*(-1+cos(a))/sin(a) , -b*tan(a/2) )$
+defrule(tr010, b*(-1-cos(a))/sin(a) , -b*cot(a/2) )$
+defrule(tr011, b*2/(-1-cos(a)) , -b*sec(a/2)^2 )$
+defrule(tr012, b*2/(-1+cos(a)) , -b*csc(a/2)^2 )$
+
+/* double angle formulae */
+/* defrule(tr101, b*2*tan(a)/(1-tan(a)^2), b*tan(2*a) )$, hangs maxima */
+defrule(tr102, b*(1-tan(a)^2)/(2*tan(a)), b*cot(2*a) )$
+defrule(tr103, b*(1+tan(a)^2)/(1-tan(a)^2), b*sec(2*a) )$
+defrule(tr104, b*(1+tan(a)^2)/(2*tan(a)), b*csc(2*a) )$
+
+/* defrule(tr105, 2*tan(a)/(-1+tan(a)^2), -tan(2*a) )$, hangs maxima */
+defrule(tr106, b*(-1+tan(a)^2)/(2*tan(a)), -b*cot(2*a) )$
+defrule(tr107, b*(1+tan(a)^2)/(-1+tan(a)^2), -b*sec(2*a) )$
+defrule(tr108, b*(-1-tan(a)^2)/(2*tan(a)), -b*csc(2*a) )$
+
+/* exponentials */
+defrule(tr201, b*(cos(a)+%i*sin(a)) , b*exp(%i*a) )$
+defrule(tr202, b*(cos(a)-%i*sin(a)) , b*exp(-%i*a) )$
+defrule(tr203, b*(-cos(a)+%i*sin(a)) , -b*exp(-%i*a) )$
+
+fstrgrule:[tr001,tr002,tr003,tr004,tr005,tr006,
+tr007,tr008,tr009,tr010,tr011,tr012,
+tr102,tr103,tr104,tr106,tr107,tr108,
+tr201,tr202,tr203]$
+
+
+/***************************************/
+/*         fstrigsimp()                */
+/***************************************/
+/* This function cycles through the trig rules above and,
+if the substitution reduces the size of the expression,
+takes the substitution.
+*/
+fstrigsimp(e):=block([N:length(fstrgrule),Li,tmp],
+    Li:conssize(e),
+    for i: 1 thru N do
+      ( if fsdebug=1 then print("trying rule ",fstrgrule[i]),
+        tmp: apply('apply1,[e,fstrgrule[i]]),
+        if fsdebug=1 then print("tmp= ",tmp),
+        tmpsz: conssize(tmp),
+        if tmpsz<Li then (Li:tmpsz, e:tmp)),
+    e
+)$
