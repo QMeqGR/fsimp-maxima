@@ -15,8 +15,9 @@
 
 */
 
-matchdeclare([a,b],true)$
+matchdeclare(a,true)$
 /* half angle formulae */
+matchdeclare(b,lambda([x],freeof(cos(a),sin(a),x)))$
 defrule(tr001, b*(1-cos(a))/2 , b*sin(a/2)^2 )$
 defrule(tr002, b*(1+cos(a))/2 , b*cos(a/2)^2 )$
 defrule(tr003, b*(1-cos(a))/sin(a) , b*tan(a/2) )$
@@ -32,24 +33,26 @@ defrule(tr011, b*2/(-1-cos(a)) , -b*sec(a/2)^2 )$
 defrule(tr012, b*2/(-1+cos(a)) , -b*csc(a/2)^2 )$
 
 /* double angle formulae */
-/* defrule(tr101, b*2*tan(a)/(1-tan(a)^2), b*tan(2*a) )$, hangs maxima */
+matchdeclare(b,lambda([x],freeof(tan(a),x)))$
+defrule(tr101, b*2*tan(a)/(1-tan(a)^2), b*tan(2*a) )$
 defrule(tr102, b*(1-tan(a)^2)/(2*tan(a)), b*cot(2*a) )$
 defrule(tr103, b*(1+tan(a)^2)/(1-tan(a)^2), b*sec(2*a) )$
 defrule(tr104, b*(1+tan(a)^2)/(2*tan(a)), b*csc(2*a) )$
 
-/* defrule(tr105, 2*tan(a)/(-1+tan(a)^2), -tan(2*a) )$, hangs maxima */
+defrule(tr105, 2*tan(a)/(-1+tan(a)^2), -tan(2*a) )$
 defrule(tr106, b*(-1+tan(a)^2)/(2*tan(a)), -b*cot(2*a) )$
 defrule(tr107, b*(1+tan(a)^2)/(-1+tan(a)^2), -b*sec(2*a) )$
 defrule(tr108, b*(-1-tan(a)^2)/(2*tan(a)), -b*csc(2*a) )$
 
 /* exponentials */
+matchdeclare(b,lambda([x],freeof(cos(a),sin(a),x)))$
 defrule(tr201, b*(cos(a)+%i*sin(a)) , b*exp(%i*a) )$
 defrule(tr202, b*(cos(a)-%i*sin(a)) , b*exp(-%i*a) )$
 defrule(tr203, b*(-cos(a)+%i*sin(a)) , -b*exp(-%i*a) )$
 
 fstrgrule:[tr001,tr002,tr003,tr004,tr005,tr006,
 tr007,tr008,tr009,tr010,tr011,tr012,
-tr102,tr103,tr104,tr106,tr107,tr108,
+tr101,tr102,tr103,tr104,tr105,tr106,tr107,tr108,
 tr201,tr202,tr203]$
 
 

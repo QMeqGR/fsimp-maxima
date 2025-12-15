@@ -17,8 +17,10 @@
 
 */
 
-load("fsimp.lisp");
+load("fsimp.lisp")$
 fsimp_ver:"v0.0.1"$
+
+load("fstrgsimp.mac")$
 
 /*
 Adapted from David Scherfgen's dssimp.mac code.
@@ -88,7 +90,7 @@ fsimp(expr, r) :=
 fsimpall(expr) := block([
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,cosh,sinh,acosh,asinh,tanh,atanh],
    trigflag:0,expflag:0,
-   triglist:[trigsimp,trigreduce,trigrat],
+   triglist:[fstrigsimp,trigsimp,trigreduce,trigrat],
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
    simplist:[resimplify, expand, combine, radcan, ratsimp,
