@@ -9,6 +9,14 @@ expressions using the core simplification routines for expressions
 invovling trigonometric, logarithmic, exponential, polynomial and
 other functions.
 
+To use the package, place the files in your maxima search path and
+
+load("fsimp.mac");
+
+To simplify an expression expr call
+
+fullsimp(expr);
+
 The algorithm begins by searching through an expression for e.g. trig,
 log, exp, etc. and choosing a set of core simplification
 routines. Then it runs a poor-man's kind of simulated annealing
