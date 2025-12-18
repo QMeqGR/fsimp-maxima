@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.2, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Top (Package fsimp)</title>
+
+<meta name="description" content="Top (Package fsimp)">
+<meta name="keywords" content="Top (Package fsimp)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="#Top" rel="start" title="Top">
+<link href="Function-and-Variable-Index.html" rel="index" title="Function and Variable Index">
+<link href="../dir_html/index.html" rel="up" title="(dir)">
+<link href="#Introduction-to-package-fsimp" rel="next" title="Introduction to package fsimp">
+<link href="../dir_html/index.html" rel="prev" title="(dir)">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+
+
+
+<div class="top-level-extent" id="Top">
+<div class="nav-panel">
+<p>
+Next: <a href="#Introduction-to-package-fsimp" accesskey="n" rel="next">Introduction to package fsimp</a>, Previous: <a href="../dir_html/index.html" accesskey="p" rel="prev">(dir)</a>, Up: <a href="../dir_html/index.html" accesskey="u" rel="up">(dir)</a> &nbsp; [<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<a class="top" id="SEC_Top"></a>
+
+
+<ul class="mini-toc">
+<li><a href="#Package-fsimp" accesskey="1">Package fsimp</a></li>
+<li><a href="Function-and-Variable-Index.html" accesskey="2">Function and Variable index</a></li>
+</ul>
+<div class="chapter-level-extent" id="Package-fsimp">
+<h2 class="chapter"><span>1 Package fsimp<a class="copiable-link" href="#Package-fsimp"> &para;</a></span></h2>
+
+<ul class="mini-toc">
+<li><a href="#Introduction-to-package-fsimp" accesskey="1">Introduction to package fsimp</a></li>
+<li><a href="#Functions-and-Variables-for-fsimp" accesskey="2">Functions and Variables for fsimp</a></li>
+</ul>
+<hr>
+<div class="section-level-extent" id="Introduction-to-package-fsimp">
+<div class="nav-panel">
+<p>
+Next: <a href="#Functions-and-Variables-for-fsimp" accesskey="n" rel="next">Functions and Variables for fsimp</a> &nbsp; [<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<h3 class="section" id="Introduction-to-package-fsimp-1"><span>1.1 Introduction to package fsimp<a class="copiable-link" href="#Introduction-to-package-fsimp-1"> &para;</a></span></h3>
+
+<p>Documentation is under construction!
+</p>
+<p>The <code class="code">fsimp</code> package provides a &rsquo;fullsimp&rsquo; simplification function for expressions. It uses
+the simplification routines in core Maxima, but combines them with an algorithm that
+allows expressions to grow and shrink while trying different simplification routines. It
+always chooses the smallest expression as the most simple. The user has some control over
+the algorithm and routines.
+</p>
+<hr>
+</div>
+<div class="section-level-extent" id="Functions-and-Variables-for-fsimp">
+<div class="nav-panel">
+<p>
+Previous: <a href="#Introduction-to-package-fsimp" accesskey="p" rel="prev">Introduction to package fsimp</a> &nbsp; [<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<h3 class="section" id="Functions-and-Variables-for-fsimp-1"><span>1.2 Functions and Variables for fsimp<a class="copiable-link" href="#Functions-and-Variables-for-fsimp-1"> &para;</a></span></h3>
+
+<dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fsdebug"><span class="category-def">Variable: </span><span><strong class="def-name">fsdebug</strong><a class="copiable-link" href="#index-fsdebug"> &para;</a></span></dt>
+<dd><p>Setting the variable <code class="code">fsdebug</code> to 1 will allow the user to see
+the fsimp function operations, list selection of simplification routines, etc.
+</p></dd></dl>
+
+<a class="anchor" id="fullsimp"></a><dl class="first-deffn def-block">
+<dt class="deffn def-line" id="index-fsimp"><span class="category-def">Function: </span><span><strong class="def-name">fsimp</strong> <var class="def-var-arguments">(<code class="code">expr</code>,[simp1,simp2,...])</var><a class="copiable-link" href="#index-fsimp"> &para;</a></span></dt>
+<dd><p>The <code class="code">fullsimp</code> function takes an input expression <code class="code">expr</code> and
+attempts to find a simpler form using the builtin simplification
+routines in core Maxima. These include: <code class="code">[resimplify, expand,
+combine, radcan, ratsimp, rootscontract, xthru, multthru, factor,
+sqrtdenest, triglist,exptlist, loglist]</code>. Additional trigonometric
+simplifications are applied as well.
+</p>
+<p><code class="code">fullsimp</code> tries to find the smallest equivalent expression based on the
+Common Lisp <code class="code">conssize</code> of the expression.
+</p>
+<p>The option arguments to <code class="code">fullsimp</code> are simplification routines the
+user wants excluded from the list above.
+</p></dd></dl>
+
+<div class="example">
+<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;); 
+(%o1)      /home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac
+(%i2) fullsimp((1+cos(t))/sin(t)); 
+                                        t
+(%o2)                               cot(-)
+                                        2
+(%i3) fullsimp(cos(x)+%i*sin(x)); 
+                                      %i x
+(%o3)                               %e
+</pre></div></div>
+
+<p>If you wish to exclude trigonometric simplifications,
+</p>
+<div class="example">
+<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;); 
+(%o1)      /home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac
+(%i2) fullsimp((1+cos(t))/sin(t),fstrigsimp); 
+(%o2)                         (cos(t) + 1) csc(t)
+</pre></div></div>
+
+
+</div>
+</div>
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="#Introduction-to-package-fsimp" accesskey="n" rel="next">Introduction to package fsimp</a>, Previous: <a href="../dir_html/index.html" accesskey="p" rel="prev">(dir)</a>, Up: <a href="../dir_html/index.html" accesskey="u" rel="up">(dir)</a> &nbsp; [<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,106 @@
+\input texinfo   @c -*-texinfo-*-
+
+@setfilename fsimp.info
+@settitle Package fsimp
+
+@ifinfo
+@macro var {expr}
+<\expr\>
+@end macro
+@end ifinfo
+
+@dircategory Mathematics/Maxima
+@direntry
+* Package fsimp: (maxima) Maxima share package fsimp
+@end direntry
+
+@menu
+* Introduction to package fsimp::
+* Functions and Variables for fsimp::
+@end menu
+@node Top, Introduction to package fsimp, (dir), (dir)
+@top
+
+@menu
+* Introduction to package fsimp::
+* Functions and Variables for fsimp::
+
+@detailmenu
+ --- The Detailed Node Listing ---
+
+* Introduction to package fsimp::
+* Functions and Variables for fsimp::
+
+@end detailmenu
+@end menu
+
+
+@chapter Package fsimp
+
+@node Introduction to package fsimp, Functions and Variables for fsimp, Top, Top
+@section Introduction to package fsimp
+
+Documentation is under construction!
+
+The @code{fsimp} package provides a 'fullsimp' simplification function for expressions. It uses
+the simplification routines in core Maxima, but combines them with an algorithm that
+allows expressions to grow and shrink while trying different simplification routines. It
+always chooses the smallest expression as the most simple. The user has some control over
+the algorithm and routines.
+
+@node Functions and Variables for fsimp, , Introduction to package fsimp, Top
+@section Functions and Variables for fsimp
+
+@defvr {Variable} fsdebug
+Setting the variable @code{fsdebug} to 1 will allow the user to see
+the fsimp function operations, list selection of simplification routines, etc.
+@end defvr
+
+@anchor{fullsimp}
+@deffn {Function} fsimp (@code{expr},[simp1,simp2,...])
+The @code{fullsimp} function takes an input expression @code{expr} and
+attempts to find a simpler form using the builtin simplification
+routines in core Maxima. These include: @code{[resimplify, expand,
+combine, radcan, ratsimp, rootscontract, xthru, multthru, factor,
+sqrtdenest, triglist,exptlist, loglist]}. Additional trigonometric
+simplifications are applied as well.
+
+@code{fullsimp} tries to find the smallest equivalent expression based on the
+Common Lisp @code{conssize} of the expression.
+
+The option arguments to @code{fullsimp} are simplification routines the
+user wants excluded from the list above.
+@end deffn
+
+@example
+@group
+(%i1) load("fsimp.mac"); 
+(%o1)      /home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac
+(%i2) fullsimp((1+cos(t))/sin(t)); 
+                                        t
+(%o2)                               cot(-)
+                                        2
+(%i3) fullsimp(cos(x)+%i*sin(x)); 
+                                      %i x
+(%o3)                               %e
+@end group
+@end example
+
+If you wish to exclude trigonometric simplifications,
+
+@example
+@group
+(%i1) load("fsimp.mac"); 
+(%o1)      /home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac
+(%i2) fullsimp((1+cos(t))/sin(t),fstrigsimp); 
+(%o2)                         (cos(t) + 1) csc(t)
+@end group
+@end example
+
+
+@node Function and Variable Index, , Top, Top
+@appendix Function and Variable index
+@printindex fn
+@printindex vr
+
+@bye

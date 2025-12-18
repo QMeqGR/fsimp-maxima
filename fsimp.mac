@@ -18,7 +18,7 @@
 */
 
 load("fsimp.lisp")$
-fsimp_ver:"v0.0.1"$
+fsimp_ver:"v0.0.2"$
 
 load("fstrgsimp.mac")$
 
@@ -87,14 +87,14 @@ fsimp(expr, r) :=
    return(expr)
 );
 
-fsimpall(expr) := block([
+fsimpall(expr,[u]) := block([
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,cosh,sinh,acosh,asinh,tanh,atanh],
    trigflag:0,expflag:0,
    triglist:[fstrigsimp,trigsimp,trigreduce,trigrat],
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
    simplist:[resimplify, expand, combine, radcan, ratsimp,
-            rootscontract, xthru, multthru, factor] ],
+            rootscontract, xthru, multthru, factor, sqrtdenest] ],
 
   for i: 1 thru length(trigfuns) do
     if freeof(trigfuns[i],expr)=false then (trigflag:1,expflag:1),
@@ -103,10 +103,27 @@ fsimpall(expr) := block([
   if trigflag=1 then simplist: append(triglist,simplist),
   if expflag=1 then simplist: append(explist,simplist),
   if freeof(log,expr)=false then simplist:append(loglist,simplist),
-  if fsdebug=1 then disp(simplist),
+
+  /* user may remove any simplifications by hand */
+  if u#[] then simplist:fs_exclude(u,simplist),
+  if fsdebug=1 then display(u,simplist),
+  /* call fsimp */
   fsimp(expr, simplist)
   );
 
 alias(fullsimp,fsimpall);
 declare(fsimpall,evfun);
 declare(fullsimp,evfun);
+
+
+/*******************************************/
+/*         Utility functions               */
+/*******************************************/
+
+/* Remove list1 contents from list2 */
+fs_exclude(list1,list2):=block([out:list2],
+  if listp(list1)=false or listp(list2)=false then
+  return(print("Arguments must be lists.")),
+  for i in list1 do out:delete(i,out),
+  out
+  )$
