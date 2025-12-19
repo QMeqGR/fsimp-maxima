@@ -39,7 +39,7 @@ fsimp(expr, r) :=
       simpdExprSize,origExprSize,L,loopmax:2,sizefactor:0.8,
       fpprintprec:5],
       if fsdebug=1 then print("sizefactor: ",sizefactor),
-      origExprSize: exprSize : conssize(expr),
+      origExprSize: exprSize : cost(expr),
       if fsdebug=1 then print("original expression size: ",exprSize),
       smallestExpr : expr,
       smallestExprSize : exprSize,
@@ -56,7 +56,7 @@ fsimp(expr, r) :=
             block(
              /* always combine after every simp function */
              simpdExpr : combine( r[i](smallestExpr) ),
-             simpdExprSize : conssize(simpdExpr),
+             simpdExprSize : cost(simpdExpr),
              if fsdebug=1 then print(r[i],"-- new size -->",simpdExprSize),
 
              /* if the expression is smaller always take the step */
@@ -83,7 +83,7 @@ fsimp(expr, r) :=
          )
        )
      ),
-   if fsdebug=1 then print("final expr size: ",conssize(expr)),
+   if fsdebug=1 then print("final expr size: ",cost(expr)),
    return(expr)
 );
 
@@ -119,6 +119,10 @@ declare(fullsimp,evfun);
 /*******************************************/
 /*         Utility functions               */
 /*******************************************/
+
+fssl(expr):=slength(string(expr)); /* string length of expr */
+fssize(expr):=conssize(expr)+fssl(expr); /* new cost function */
+cost(expr):=fssize(expr)$
 
 /* Remove list1 contents from list2 */
 fs_exclude(list1,list2):=block([out:list2],
