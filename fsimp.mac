@@ -38,7 +38,7 @@ fsimp(expr, r) :=
     block([exprSize, smallestExpr, smallestExprSize, simpdExpr,
       simpdExprSize,origExprSize,L,loopmax:2,sizefactor:0.8,
       fpprintprec:5],
-      if fsdebug=1 then print("sizefactor: ",sizefactor),
+      if fsdebug>1 then print("sizefactor: ",sizefactor),
       origExprSize: exprSize : cost(expr),
       if fsdebug=1 then print("original expression size: ",exprSize),
       smallestExpr : expr,
@@ -48,7 +48,7 @@ fsimp(expr, r) :=
       simpdExprSize : exprSize,
       for L: 1 thru loopmax do
       block(
-         if fsdebug=1 then print("-------------------------- loopcnt=",L),
+         if fsdebug>1 then print("-------------------------- loopcnt=",L),
          if L > loopmax then return(expr),
 
          block(
@@ -57,14 +57,14 @@ fsimp(expr, r) :=
              /* always combine after every simp function */
              simpdExpr : combine( r[i](smallestExpr) ),
              simpdExprSize : cost(simpdExpr),
-             if fsdebug=1 then print(r[i],"-- new size -->",simpdExprSize),
+             if fsdebug>1 then print(r[i],"-- new size -->",simpdExprSize),
 
              /* if the expression is smaller always take the step */
              if simpdExprSize < exprSize then
              block(
                  smallestExpr : simpdExpr,
                  smallestExprSize : simpdExprSize,
-                 if fsdebug=1 then print(">>>>> redefining smallestExpr: ",smallestExprSize),
+                 if fsdebug>1 then print(">>>>> redefining smallestExpr: ",smallestExprSize),
                  expr : smallestExpr,
                  exprSize : smallestExprSize
              ),
@@ -73,10 +73,10 @@ fsimp(expr, r) :=
              if simpdExprSize > smallestExprSize then
              block([t1],
                t1: (simpdExprSize - smallestExprSize) / smallestExprSize,
-               if fsdebug=1 then print("t1=",float(t1)),
+               if fsdebug>1 then print("t1=",float(t1)),
                if t1 < sizefactor then
                block(
-                 if fsdebug=1 then print(">>>>>> trying bigger expr"),
+                 if fsdebug>1 then print(">>>>>> trying bigger expr"),
                  smallestExpr : simpdExpr,
                  smallestExprSize : simpdExprSize
              ))
@@ -90,7 +90,7 @@ fsimp(expr, r) :=
 fsimpall(expr,[u]) := block([
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,cosh,sinh,acosh,asinh,tanh,atanh],
    trigflag:0,expflag:0,
-   triglist:[trigsimp,fstrigsimp,trigreduce,trigrat],
+   triglist:['trigexpand,trigsimp,fstrigsimp,trigreduce,trigrat],
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
    simplist:[resimplify, expand, combine, radcan, ratsimp,
@@ -112,6 +112,14 @@ fsimpall(expr,[u]) := block([
   /* user may remove any simplifications by hand */
   if u#[] then simplist:fs_exclude(u,simplist),
   if fsdebug=1 then display(u,simplist),
+
+  /* user may define custom simplifications through
+     the variable fs_custom_simp, it should be a list.
+     e.g. [lambda([q], block([algebraic : true], ratsimp(q)))]
+  */
+  if fsdebug=1 then display(fs_custom_simp),
+  if properties(fs_custom_simp)#[] then simplist:append(simplist,fs_custom_simp),
+
   /* call fsimp */
   fsimp(expr, simplist)
   );

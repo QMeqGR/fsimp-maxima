@@ -63,19 +63,36 @@ attempts to find a simpler form using the builtin simplification
 routines in core Maxima. These include: @code{[resimplify, expand,
 combine, radcan, ratsimp, rootscontract, xthru, multthru, factor,
 sqrtdenest, triglist,exptlist, loglist]}. Additional trigonometric
-simplifications are applied as well.
+simplifications are applied as well. The full list of simplifications
+is shown in the variable @code{simplist} which will be shown if
+the variable @code{fsdebug} is set to 1.
 
-@code{fullsimp} tries to find the smallest equivalent expression based on the
-Common Lisp @code{conssize} of the expression.
+There are two ways to manipulate the simplifications in @code{simplist}.
+First, the option arguments to @code{fullsimp}, @code{simp1, simp2,
+etc.} are simplification routines the user wants @emph{excluded} from
+@code{simplist}.
 
-The option arguments to @code{fullsimp} are simplification routines the
-user wants excluded from the list above.
+Second, the user may create a @emph{list} called @code{fs_custom_simp},
+and place any user defined simplification routines. For example the
+code
+
+@code{fs_custom_simp:[lambda([q], block([algebraic : true], ratsimp(q)))]}
+
+will create a simplification routine where the variable @code{algebraic} is
+set to @code{true}, while the @code{ratsimp} simplification is applied.
+
+In general, @code{fullsimp} tries to find the smallest equivalent
+expression based on the Common Lisp @code{conssize} and string size of
+an expression.
+
+The user may manipulate the order of simplifications by judicious
+use of the exclusion option and the custom simplification option.
+
 @end deffn
 
 @example
 @group
-(%i1) load("fsimp.mac"); 
-(%o1)      /home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac
+(%i1) load("fsimp.mac")$ 
 (%i2) fullsimp((1+cos(t))/sin(t)); 
                                         t
 (%o2)                               cot(-)
@@ -90,10 +107,11 @@ If you wish to exclude trigonometric simplifications,
 
 @example
 @group
-(%i1) load("fsimp.mac"); 
-(%o1)      /home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac
+(%i1) load("fsimp.mac")$ 
 (%i2) fullsimp((1+cos(t))/sin(t),fstrigsimp); 
-(%o2)                         (cos(t) + 1) csc(t)
+                                        t
+(%o2)                               cot(-)
+                                        2
 @end group
 @end example
 

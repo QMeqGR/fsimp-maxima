@@ -1,7 +1,7 @@
 0 $
 
 load("fsimp.mac") ;
-"/home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac" $
+$
 
 fullsimp((1+cos(t))/sin(t)) ;
 cot(t/2) $
@@ -10,7 +10,7 @@ fullsimp(cos(x)+%i*sin(x)) ;
 %e^(%i*x) $
 
 load("fsimp.mac") ;
-"/home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac" $
+$
 
 fullsimp((1+cos(t))/sin(t),fstrigsimp) ;
-(cos(t)+1)*csc(t)  $
+cot(t/2)  $

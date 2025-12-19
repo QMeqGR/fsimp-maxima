@@ -90,18 +90,35 @@ attempts to find a simpler form using the builtin simplification
 routines in core Maxima. These include: <code class="code">[resimplify, expand,
 combine, radcan, ratsimp, rootscontract, xthru, multthru, factor,
 sqrtdenest, triglist,exptlist, loglist]</code>. Additional trigonometric
-simplifications are applied as well.
+simplifications are applied as well. The full list of simplifications
+is shown in the variable <code class="code">simplist</code> which will be shown if
+the variable <code class="code">fsdebug</code> is set to 1.
 </p>
-<p><code class="code">fullsimp</code> tries to find the smallest equivalent expression based on the
-Common Lisp <code class="code">conssize</code> of the expression.
+<p>There are two ways to manipulate the simplifications in <code class="code">simplist</code>.
+First, the option arguments to <code class="code">fullsimp</code>, <code class="code">simp1, simp2,
+etc.</code> are simplification routines the user wants <em class="emph">excluded</em> from
+<code class="code">simplist</code>.
 </p>
-<p>The option arguments to <code class="code">fullsimp</code> are simplification routines the
-user wants excluded from the list above.
-</p></dd></dl>
+<p>Second, the user may create a <em class="emph">list</em> called <code class="code">fs_custom_simp</code>,
+and place any user defined simplification routines. For example the
+code
+</p>
+<p><code class="code">fs_custom_simp:[lambda([q], block([algebraic : true], ratsimp(q)))]</code>
+</p>
+<p>will create a simplification routine where the variable <code class="code">algebraic</code> is
+set to <code class="code">true</code>, while the <code class="code">ratsimp</code> simplification is applied.
+</p>
+<p>In general, <code class="code">fullsimp</code> tries to find the smallest equivalent
+expression based on the Common Lisp <code class="code">conssize</code> and string size of
+an expression.
+</p>
+<p>The user may manipulate the order of simplifications by judicious
+use of the exclusion option and the custom simplification option.
+</p>
+</dd></dl>
 
 <div class="example">
-<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;); 
-(%o1)      /home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac
+<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;)$ 
 (%i2) fullsimp((1+cos(t))/sin(t)); 
                                         t
 (%o2)                               cot(-)
@@ -114,10 +131,11 @@ user wants excluded from the list above.
 <p>If you wish to exclude trigonometric simplifications,
 </p>
 <div class="example">
-<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;); 
-(%o1)      /home/ehm/math/Maxima/share/ehm/fullsimp-maxima/fsimp.mac
+<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;)$ 
 (%i2) fullsimp((1+cos(t))/sin(t),fstrigsimp); 
-(%o2)                         (cos(t) + 1) csc(t)
+                                        t
+(%o2)                               cot(-)
+                                        2
 </pre></div></div>
 
 
