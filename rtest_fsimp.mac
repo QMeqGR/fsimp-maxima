@@ -1,0 +1,21 @@
+(kill(all), load("fsimp"), 0);
+0;
+
+/*   Test trig simplifications   */
+
+fullsimp(cos(t)+%i*sin(t));
+%e^(%i*t);
+
+fullsimp((1+cos(t))/sin(t));
+cot(t/2);
+
+fullsimp((cos(th)+1)/((%i*sin(ph)-cos(ph))*sin(th)));
+-(%e^(%i*ph)*cot(th/2));
+
+/*    Test number related simplifications   */
+
+fullsimp(46*log(2));
+46*log(2);
+
+fullsimp(log(70368744177664));
+46*log(2);

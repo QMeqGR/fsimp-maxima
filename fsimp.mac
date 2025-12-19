@@ -90,7 +90,7 @@ fsimp(expr, r) :=
 fsimpall(expr,[u]) := block([
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,cosh,sinh,acosh,asinh,tanh,atanh],
    trigflag:0,expflag:0,
-   triglist:[fstrigsimp,trigsimp,trigreduce,trigrat],
+   triglist:[trigsimp,fstrigsimp,trigreduce,trigrat],
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
    simplist:[resimplify, expand, combine, radcan, ratsimp,
