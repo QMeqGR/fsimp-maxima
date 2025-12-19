@@ -94,7 +94,8 @@ fsimpall(expr,[u]) := block([
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
    simplist:[resimplify, expand, combine, radcan, ratsimp,
-            rootscontract, xthru, multthru, factor, sqrtdenest] ],
+            rootscontract, xthru, multthru, factor, sqrtdenest,
+            minfactorial] ],
 
   for i: 1 thru length(trigfuns) do
     if freeof(trigfuns[i],expr)=false then (trigflag:1,expflag:1),
@@ -103,6 +104,10 @@ fsimpall(expr,[u]) := block([
   if trigflag=1 then simplist: append(triglist,simplist),
   if expflag=1 then simplist: append(explist,simplist),
   if freeof(log,expr)=false then simplist:append(loglist,simplist),
+  if freeof(gamma,expr)=false then (load("gamma_simp.mac"),
+    simplist:append([gamma_simp],simplist)),
+  if freeof(factorial,expr)=false then (load("gamma_simp.mac"),
+    simplist:append([factorial_simp],simplist)),
 
   /* user may remove any simplifications by hand */
   if u#[] then simplist:fs_exclude(u,simplist),
