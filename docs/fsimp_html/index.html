@@ -60,13 +60,34 @@ Next: <a href="#Functions-and-Variables-for-fsimp" accesskey="n" rel="next">Func
 </div>
 <h3 class="section" id="Introduction-to-package-fsimp-1"><span>1.1 Introduction to package fsimp<a class="copiable-link" href="#Introduction-to-package-fsimp-1"> &para;</a></span></h3>
 
-<p>Documentation is under construction!
+<p>The <code class="code">fsimp</code> package provides a &rsquo;fullsimp&rsquo; simplification function
+for expressions.  This code was adapted from David Scherfgen&rsquo;s
+dssimp.mac code posted on the Maxima discussion list.
 </p>
-<p>The <code class="code">fsimp</code> package provides a &rsquo;fullsimp&rsquo; simplification function for expressions. It uses
-the simplification routines in core Maxima, but combines them with an algorithm that
-allows expressions to grow and shrink while trying different simplification routines. It
-always chooses the smallest expression as the most simple. The user has some control over
-the algorithm and routines.
+<p>This code implements a simplification routine for Maxima CAS
+expressions using the core simplification routines for expressions
+invovling trigonometric, logarithmic, exponential, polynomial and
+other functions.
+</p>
+<p>To use the package, place the files in your maxima search path and
+</p>
+<p>load(&quot;fsimp.mac&quot;);
+</p>
+<p>To simplify an expression <code class="code">expr</code> call
+</p>
+<p><code class="code">fullsimp(expr);</code>
+</p>
+<p>The algorithm begins by searching through an expression for e.g. trig,
+log, exp, etc. and choosing a set of core simplification
+routines. Then it runs a poor-man&rsquo;s kind of simulated annealing
+routine. It&rsquo;s poor-man&rsquo;s because it&rsquo;s not really simulated annealing,
+but while it cycles through various core simplification routines
+(several times) it allows the intermediate expression to become
+slightly larger if it ultimately becomes smaller. The output is always
+the smallest size expression, where the size is computed by the lisp
+<code class="code">consize</code> function plus the string length of the expression.
+</p>
+<p>E. Majzoub.
 </p>
 <hr>
 </div>

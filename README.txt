@@ -7,14 +7,34 @@ Package fsimp
 1.1 Introduction to package fsimp
 =================================
 
-Documentation is under construction!
+The ‘fsimp’ package provides a 'fullsimp' simplification function for
+expressions.  This code was adapted from David Scherfgen's dssimp.mac
+code posted on the Maxima discussion list.
 
-   The ‘fsimp’ package provides a 'fullsimp' simplification function for
-expressions.  It uses the simplification routines in core Maxima, but
-combines them with an algorithm that allows expressions to grow and
-shrink while trying different simplification routines.  It always
-chooses the smallest expression as the most simple.  The user has some
-control over the algorithm and routines.
+   This code implements a simplification routine for Maxima CAS
+expressions using the core simplification routines for expressions
+invovling trigonometric, logarithmic, exponential, polynomial and other
+functions.
+
+   To use the package, place the files in your maxima search path and
+
+   load("fsimp.mac");
+
+   To simplify an expression ‘expr’ call
+
+   ‘fullsimp(expr);’
+
+   The algorithm begins by searching through an expression for e.g.
+trig, log, exp, etc.  and choosing a set of core simplification
+routines.  Then it runs a poor-man's kind of simulated annealing
+routine.  It's poor-man's because it's not really simulated annealing,
+but while it cycles through various core simplification routines
+(several times) it allows the intermediate expression to become slightly
+larger if it ultimately becomes smaller.  The output is always the
+smallest size expression, where the size is computed by the lisp
+‘consize’ function plus the string length of the expression.
+
+   E. Majzoub.
 
 1.2 Functions and Variables for fsimp
 =====================================
@@ -78,10 +98,10 @@ Appendix A Function and Variable index
 * Menu:
 
 * fsimp:                                 Functions and Variables for fsimp.
-                                                               (line 26)
+                                                               (line 46)
 
 * Menu:
 
 * fsdebug:                               Functions and Variables for fsimp.
-                                                               (line 21)
+                                                               (line 41)
 
