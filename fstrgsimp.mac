@@ -50,10 +50,15 @@ defrule(tr201, b*(cos(a)+%i*sin(a)) , b*exp(%i*a) )$
 defrule(tr202, b*(cos(a)-%i*sin(a)) , b*exp(-%i*a) )$
 defrule(tr203, b*(-cos(a)+%i*sin(a)) , -b*exp(-%i*a) )$
 
+/* csc and cot rules */
+matchdeclare(b,lambda([x],freeof(cos(a),sin(a),csc(a),cot(a),x)))$
+defrule(tr301, b*(csc(a)^2-cot(a)^2), b)$
+
 fstrgrule:[tr001,tr002,tr003,tr004,tr005,tr006,
 tr007,tr008,tr009,tr010,tr011,tr012,
 tr101,tr102,tr103,tr104,tr105,tr106,tr107,tr108,
-tr201,tr202,tr203]$
+tr201,tr202,tr203,
+tr301]$
 
 
 /***************************************/
