@@ -1,16 +1,8 @@
-0 $
-
-load("fsimp.mac") ;
-$
-
+(display2d:false,kill(all),load(fsimp),0) ;
+0 ;
 fullsimp((1+cos(t))/sin(t)) ;
-cot(t/2) $
-
+cot(t/2) ;
 fullsimp(cos(x)+%i*sin(x)) ;
-%e^(%i*x) $
-
-load("fsimp.mac") ;
-$
-
+%e^(%i*x) ;
 fullsimp((1+cos(t))/sin(t),fstrigsimp) ;
-cot(t/2)  $
+cot(t/2) ;

@@ -87,7 +87,6 @@ an expression.
 
 The user may manipulate the order of simplifications by judicious
 use of the exclusion option and the custom simplification option.
-
 @end deffn
 
 @example
