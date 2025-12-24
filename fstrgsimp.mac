@@ -72,7 +72,7 @@ if the substitution reduces the size of the expression,
 takes the substitution.
 */
 fstrigsimp(e):=block([N:length(fstrgrule),Li,tmp],
-    Li:conssize(e),
+    Li:fssize(e),
     for i: 1 thru N do
       ( if fsdebug=1 then print("trying rule ",fstrgrule[i]),
         tmp: apply('apply1,[e,fstrgrule[i]]),
