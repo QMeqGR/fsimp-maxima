@@ -89,7 +89,7 @@ fsimp(expr, r) :=
    return(expr)
 );
 
-fsimpall(expr,[u]) := block([
+fsimpall(expr,[remlist]) := block([
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,csc,cot,
              cosh,sinh,acosh,asinh,tanh,atanh,csch,coth],
    trigflag:0,expflag:0,
@@ -113,8 +113,8 @@ fsimpall(expr,[u]) := block([
     simplist:append([factorial_simp],simplist)),
 
   /* user may remove any simplifications by hand */
-  if u#[] then simplist:fs_exclude(u,simplist),
-  if fsdebug=1 then display(u,simplist),
+  if remlist#[] then simplist:fs_exclude(remlist,simplist),
+  if fsdebug=1 then display(remlist,simplist),
 
   /* user may define custom simplifications through
      the variable fs_custom_simp, it should be a list.
