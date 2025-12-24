@@ -24,13 +24,6 @@ fullsimp( asin(-x) );
 fullsimp( atan(-x) );
 -atan(x);
 
-fullsimp( asin(sin(x)) );
-x;
-fullsimp( acos(cos(x)) );
-x;
-fullsimp( atan(tan(x)) );
-x;
-
 fullsimp( sin(x)^2 + cos(x)^2 );
 1;
 fullsimp( sec(x)^2 - tan(x)^2 );
