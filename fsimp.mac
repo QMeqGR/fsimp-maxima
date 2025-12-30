@@ -17,7 +17,7 @@
 
 */
 
-fsimp_ver:"v0.0.2"$
+fsimp_ver:"v0.0.3"$
 
 load("fsimp.lisp")$
 load("fsimp-index.lisp")$
@@ -89,7 +89,11 @@ fsimp(expr, r) :=
    return(expr)
 );
 
-fsimpall(expr,[remlist]) := block([
+fsimpall(expr,[remlist]) :=
+   if listp (expr) or setp (expr) then
+   map(lambda([x],fsimpall(x,[remlist])),expr)
+   else if matrixp (expr) then matrixmap(lambda([x],fsimpall(x,[remlist])),expr)
+   else block([
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,csc,cot,
              cosh,sinh,acosh,asinh,tanh,atanh,csch,coth],
    trigflag:0,expflag:0,
