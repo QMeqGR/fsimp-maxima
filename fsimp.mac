@@ -40,7 +40,7 @@ fsimp(expr, r) :=
     block([exprSize, smallestExpr, smallestExprSize, simpdExpr,
       simpdExprSize,origExprSize,L,loopmax:2,sizefactor:0.8,
       fpprintprec:5],
-      if fsdebug>1 then print("sizefactor: ",sizefactor),
+      if fsdebug>1 then print("# sizefactor variable: ",sizefactor),
       origExprSize: exprSize : cost(expr),
       if fsdebug=1 then print("original expression size: ",exprSize),
       smallestExpr : expr,
@@ -50,7 +50,9 @@ fsimp(expr, r) :=
       simpdExprSize : exprSize,
       for L: 1 thru loopmax do
       block(
+         if fsdebug>1 and L=1 then print("************* Entering main loop *******************"),
          if fsdebug>1 then print("-------------------------- loopcnt=",L),
+         if fsdebug>2 then display(expr),
          if L > loopmax then return(expr),
 
          block(
@@ -60,6 +62,7 @@ fsimp(expr, r) :=
              simpdExpr : combine( r[i](smallestExpr) ),
              simpdExprSize : cost(simpdExpr),
              if fsdebug>1 then print(r[i],"-- new size -->",simpdExprSize),
+             if fsdebug>3 then display(simpdExpr),
 
              /* if the expression is smaller always take the step */
              if simpdExprSize < exprSize then
@@ -97,7 +100,7 @@ fsimpall(expr,[remlist]) :=
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,csc,cot,
              cosh,sinh,acosh,asinh,tanh,atanh,csch,coth],
    trigflag:0,expflag:0,
-   triglist:['trigexpand,trigsimp,fstrigsimp,trigreduce,trigrat],
+   triglist:['trigexpand,factor,trigsimp,fstrigsimp,trigreduce,trigrat],
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
    simplist:[resimplify, expand, combine, radcan, ratsimp,
