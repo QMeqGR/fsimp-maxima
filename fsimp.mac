@@ -100,7 +100,7 @@ fsimpall(expr,[remlist]) :=
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,csc,cot,
              cosh,sinh,acosh,asinh,tanh,atanh,csch,coth],
    trigflag:0,expflag:0,
-   triglist:['trigexpand,factor,trigsimp,fstrigsimp,trigreduce,trigrat],
+   triglist:['trigexpand,factor,fstrigsimp,trigsimp,trigreduce,trigrat],
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
    simplist:[resimplify, expand, combine, radcan, ratsimp,

@@ -74,11 +74,11 @@ takes the substitution.
 fstrigsimp(e):=block([N:length(fstrgrule),Li,tmp],
     Li:fssize(e),
     for i: 1 thru N do
-      ( if fsdebug=1 then print("trying rule ",fstrgrule[i]),
+      ( if fsdebug>1 then print("trying rule ",fstrgrule[i]),
         tmp: apply('apply1,[e,fstrgrule[i]]),
         tmpsz: fssize(tmp),
         if tmpsz<Li then (
-          if fsdebug=1 then (print("trgrule: ",fstrgrule[i]),print("tmp= ",tmp)),
+          if fsdebug>1 then (print("trgrule: ",fstrgrule[i]),print("tmp= ",tmp)),
           Li:tmpsz, e:tmp)),
     e
 )$
