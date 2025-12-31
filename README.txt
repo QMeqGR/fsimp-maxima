@@ -72,8 +72,11 @@ smallest size expression, where the size is computed by the lisp
      expression based on the Common Lisp ‘conssize’ and string size of
      an expression.
 
-     The user may manipulate the order of simplifications by judicious
-     use of the exclusion option and the custom simplification option.
+     The user may manipulate the order of simplifications through use of
+     the exclusion option and the custom simplification option.
+
+     ‘fullsimp’ is a simplifying function and can be added to the
+     command line as shown in the last example below.
 
      (%i1) load("fsimp.mac")$
      (%i2) fullsimp((1+cos(t))/sin(t));
@@ -83,14 +86,19 @@ smallest size expression, where the size is computed by the lisp
      (%i3) fullsimp(cos(x)+%i*sin(x));
                                            %i x
      (%o3)                               %e
+     (%i4) (cos(t)+1)/((%i*sin(p)-cos(p))*sin(t)),fullsimp;
+                                         %i p     t
+     (%o4)                           - %e     cot(-)
+                                                  2
 
-   If you wish to exclude trigonometric simplifications,
+   If you wish to exclude particular simplification routines, add them
+to the arguments of fullsimp as shown below.
 
      (%i1) load("fsimp.mac")$
-     (%i2) fullsimp((1+cos(t))/sin(t),fstrigsimp);
-                                             t
-     (%o2)                               cot(-)
-                                             2
+     (%i2) fullsimp((1+cos(t))/sin(t),fstrigsimp,trigsimp,trigreduce);
+                                       cos(t) + 1
+     (%o2)                             ----------
+                                         sin(t)
 
 Appendix A Function and Variable index
 **************************************

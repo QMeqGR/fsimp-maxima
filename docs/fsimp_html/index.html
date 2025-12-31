@@ -133,8 +133,11 @@ set to <code class="code">true</code>, while the <code class="code">ratsimp</cod
 expression based on the Common Lisp <code class="code">conssize</code> and string size of
 an expression.
 </p>
-<p>The user may manipulate the order of simplifications by judicious
+<p>The user may manipulate the order of simplifications through
 use of the exclusion option and the custom simplification option.
+</p>
+<p><code class="code">fullsimp</code> is a simplifying function and can be added to the
+command line as shown in the last example below.
 </p></dd></dl>
 
 <div class="example">
@@ -146,16 +149,21 @@ use of the exclusion option and the custom simplification option.
 (%i3) fullsimp(cos(x)+%i*sin(x)); 
                                       %i x
 (%o3)                               %e
+(%i4) (cos(t)+1)/((%i*sin(p)-cos(p))*sin(t)),fullsimp; 
+                                    %i p     t
+(%o4)                           - %e     cot(-)
+                                             2
 </pre></div></div>
 
-<p>If you wish to exclude trigonometric simplifications,
+<p>If you wish to exclude particular simplification routines,
+add them to the arguments of fullsimp as shown below.
 </p>
 <div class="example">
 <div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;)$ 
-(%i2) fullsimp((1+cos(t))/sin(t),fstrigsimp); 
-                                        t
-(%o2)                               cot(-)
-                                        2
+(%i2) fullsimp((1+cos(t))/sin(t),fstrigsimp,trigsimp,trigreduce); 
+                                  cos(t) + 1
+(%o2)                             ----------
+                                    sin(t)
 </pre></div></div>
 
 
