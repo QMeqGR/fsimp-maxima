@@ -6,7 +6,7 @@
        '(("fsdebug"
           "/home/ehm/math/Maxima/share/ehm/fsimp-maxima/docs/fsimp_html/index.html"
           "index-fsdebug")
-         ("fsimp"
+         ("fullsimp"
           "/home/ehm/math/Maxima/share/ehm/fsimp-maxima/docs/fsimp_html/index.html"
-          "index-fsimp"))))
+          "index-fullsimp"))))
   (load-html-index html-index))

@@ -78,7 +78,7 @@ the fsimp function operations, list selection of simplification routines, etc.
 @end defvr
 
 @anchor{fullsimp}
-@deffn {Function} fsimp (@code{expr},[simp1,simp2,...])
+@deffn {Function} fullsimp (@code{expr},[simp1,simp2,...])
 The @code{fullsimp} function takes an input expression @code{expr} and
 attempts to find a simpler form using the builtin simplification
 routines in core Maxima. These include: @code{[resimplify, expand,

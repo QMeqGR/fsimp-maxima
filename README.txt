@@ -44,7 +44,7 @@ smallest size expression, where the size is computed by the lisp
      fsimp function operations, list selection of simplification
      routines, etc.
 
- -- Function: fsimp (expr,[simp1,simp2,...])
+ -- Function: fullsimp (expr,[simp1,simp2,...])
      The ‘fullsimp’ function takes an input expression ‘expr’ and
      attempts to find a simpler form using the builtin simplification
      routines in core Maxima.  These include: ‘[resimplify, expand,
@@ -105,7 +105,7 @@ Appendix A Function and Variable index
 
 * Menu:
 
-* fsimp:                                 Functions and Variables for fsimp.
+* fullsimp:                              Functions and Variables for fsimp.
                                                                (line 46)
 
 * Menu:
