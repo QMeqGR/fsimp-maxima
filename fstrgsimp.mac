@@ -58,16 +58,18 @@ defrule(tr302, b*(tan(a)+cot(a)), b*2*csc(2*a) )$
 defrule(tr303, b*(cot(a)-tan(a)), b*2*cot(2*a) )$
 
 /* hyperbolic */
-matchdeclare(z,all)$
-defrule(tr401, (%e^z-%e^-z)/(%e^z+%e^-z), tanh(z) )$
-defrule(tr402, (%e^(2*z)-1)/(%e^(2*z)+1), tanh(z) )$
+matchdeclare([b,z],all)$
+defrule(tr401, b*(%e^z-%e^-z)/(%e^z+%e^-z), b*tanh(z) )$
+defrule(tr402, b*(%e^(2*z)-1)/(%e^(2*z)+1), b*tanh(z) )$
+defrule(tr403, b*(%e^z+%e^-z)/2, b*cosh(z) )$
+defrule(tr404, b*(%e^z-%e^-z)/2, b*sinh(z) )$
 
 fstrgrule:[tr001,tr002,tr003,tr004,tr005,tr006,
 tr007,tr008,tr009,tr010,tr011,tr012,
 tr101,tr102,tr103,tr104,tr105,tr106,tr107,tr108,
 tr201,tr202,tr203,
 tr301,tr302,tr303,
-tr401,tr402]$
+tr401,tr402,tr403,tr404]$
 
 
 /***************************************/

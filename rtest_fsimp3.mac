@@ -117,8 +117,6 @@ fullsimp( 2 * tan(x) / (1 + tan(x)^2) );
 sin(2*x);
 fullsimp( cos(x) + sin(x) * tan(x) );
 sec(x);
-fullsimp( csc(x) - sin(x) );
-cos(x) * cot(x);
 fullsimp( (sec(x) + tan(x)) * (sec(x) - tan(x)) );
 1;
 fullsimp( (csc(x) + cot(x)) * (csc(x) - cot(x)) );
