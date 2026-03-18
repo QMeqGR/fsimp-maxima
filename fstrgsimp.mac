@@ -79,10 +79,10 @@ tr401,tr402,tr403,tr404]$
 if the substitution reduces the size of the expression,
 takes the substitution.
 */
-fstrigsimp(e):=block([N:length(fstrgrule),Li,tmp],
+fstrigsimp(e):=block([fsrulesN:length(fstrgrule),Li,tmp],
     Li:fssize(e),
     if fsdebug>2 then print(e),
-    for i: 1 thru N do
+    for i: 1 thru fsrulesN do
       ( if fsdebug>1 then print("trying rule ",fstrgrule[i] ),
         tmp: apply('apply1,[e,fstrgrule[i]]),
         tmpsz: fssize(tmp),
