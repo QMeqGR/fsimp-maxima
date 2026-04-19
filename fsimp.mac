@@ -17,7 +17,7 @@
 
 */
 
-fsimp_ver:"v0.0.3"$
+fsimp_ver:"v0.0.4"$
 
 load("fsimp.lisp")$
 load("fsimp-index.lisp")$
@@ -40,6 +40,7 @@ fsimp(expr, r) :=
     block([exprSize, smallestExpr, smallestExprSize, simpdExpr,
       simpdExprSize,origExprSize,L,loopmax:2,sizefactor:0.8,
       fpprintprec:5],
+      if numberp(expr)=true or constantp(expr)=true then return(expr),
       if fsdebug>1 then print("# sizefactor variable: ",sizefactor),
       origExprSize: exprSize : cost(expr),
       if fsdebug=1 then print("original expression size: ",exprSize),
@@ -101,7 +102,7 @@ fsimpall(expr,[remlist]) :=
              cosh,sinh,acosh,asinh,tanh,atanh,csch,coth],
    trigflag:0,expflag:0,
    /* call fstrigsimp both before and after other trig simplifications */
-   triglist:[fstrigsimp,'trigexpand,factor,trigsimp,trigreduce,trigrat,fstrigsimp],
+   triglist:[factor,fstrigsimp,'trigexpand,factor,trigsimp,trigreduce,trigrat,fstrigsimp],
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
    simplist:[resimplify, expand, combine, radcan, ratsimp,
