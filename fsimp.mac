@@ -93,6 +93,11 @@ fsimp(expr, r) :=
    return(expr)
 );
 
+
+/* Notes:
+1. don't use sqrtdenest. It chokes on subscripted variables like c[1], etc.
+
+*/
 fsimpall(expr,[remlist]) :=
    if listp (expr) or setp (expr) then
    map(lambda([x],fsimpall(x,[remlist])),expr)
@@ -106,7 +111,7 @@ fsimpall(expr,[remlist]) :=
    loglist:[logcontract],
    explist:['demoivre,'exponentialize], /* they are variables too, quote them! */
    simplist:[resimplify, expand, combine, radcan, ratsimp,
-            rootscontract, xthru, multthru, factor, sqrtdenest,
+            rootscontract, xthru, multthru, factor,
             minfactorial] ],
 
   for i: 1 thru length(trigfuns) do
@@ -156,3 +161,4 @@ fs_exclude(list1,list2):=block([out:list2],
   for i in list1 do out:delete(i,out),
   out
   )$
+
