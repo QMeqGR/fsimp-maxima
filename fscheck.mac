@@ -1,0 +1,268 @@
+/*
+;;  Numeric equivalence check for fsimp.
+
+;;  This program is free software; you can redistribute it and/or modify
+;;  it under the terms of the GNU General Public License as published by
+;;  the Free Software Foundation; either version 2 of the License, or
+;;  (at your option) any later version.
+
+;;  This program is distributed in the hope that it will be useful,
+;;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;  GNU General Public License for more details.
+*/
+
+/*
+fsimp compares every candidate with the expression it was called with, at
+a fixed set of test points. A candidate that disagrees at any point is
+rejected. Test points follow the assume database and declared features, so
+a rewrite that only holds under the user's assumptions passes exactly when
+those assumptions are in force.
+
+The check is numeric. It cannot see differences confined to isolated points,
+so (x^2-1)/(x-1) -> x+1 is accepted, as in Maxima generally.
+*/
+
+define_variable(fs_check, true, boolean)$
+
+/* Transforms that preserve value everywhere. When the input cannot be
+   evaluated numerically, a candidate is accepted only if every transform on
+   its path is in this list. The names are quoted because several are also
+   option variables. */
+fs_safe_transforms : ['ratsimp, 'fullratsimp, 'factor, 'expand, 'combine,
+                      'xthru, 'multthru, 'resimplify, 'trigsimp, 'trigreduce,
+                      'trigexpand, 'trigrat, 'minfactorial, 'exponentialize,
+                      'demoivre, 'fstrigsimp]$
+
+fs_check_npoints : 48$    /* test points per call: 3 passes over 16 kind rows */
+fs_check_minpoints : 3$   /* fewer usable points than this: input unverifiable */
+fs_check_maxtries : 120$  /* point draws per sampling pass */
+fs_check_seed : 20240501$ /* fixed seed, so results are reproducible */
+fs_check_tol : 1e-8$      /* relative tolerance */
+
+/*******************************************/
+/*         Test points                     */
+/*******************************************/
+
+/* Each test point gives every variable a value of one kind: positive or
+   negative real, or complex in one quadrant. Branch-cut errors such as
+   log(a)+log(b) -> log(a*b) only show for particular combinations of kinds
+   across variables, so the kinds come from a pairwise covering design
+   (fs_kind_rows in fsimp.lisp): every pair of variables takes every pair of
+   kinds somewhere, while the number of points stays fixed however many
+   variables there are.
+
+   Draws 1 to 16 use kind set A at small magnitude, draws 17 to 32 the same
+   rows at large magnitude, and draws 33 to 48 kind set B with magnitude
+   alternating by variable. Set A holds the left half-plane, where the cuts
+   of log and roots lie. Later draws, used when the input fails to evaluate
+   at a point, pick kinds at random. */
+fs_kinds_a : ['pos, 'neg, 'q2, 'q3]$
+fs_kinds_b : ['pos, 'neg, 'q1, 'q4]$
+fs_kinds : ['pos, 'neg, 'q1, 'q2, 'q3, 'q4]$
+
+/* Kind and magnitude class for variable j in draw k, given the kind rows. */
+fs_kind(k, j, rows) := block([row : rows[mod(k - 1, 16) + 1]],
+  if k <= 32 then
+    [fs_kinds_a[row[j] + 1], if k <= 16 then 'small else 'large]
+  elseif k <= 48 then
+    [fs_kinds_b[row[j] + 1], if evenp(k + j) then 'small else 'large]
+  else [fs_kinds[random(length(fs_kinds)) + 1], if evenp(random(2)) then 'small else 'large])$
+
+/* A value of the given kind: magnitude in [0.2, 1) or [1, 2), complex
+   values kept clear of the axes. */
+fs_kind_value(kind, cls) := block([m, q, th],
+  m : if cls = 'small then 0.2 + random(0.8) else 1.0 + random(1.0),
+  if kind = 'pos then m
+  elseif kind = 'neg then -m
+  else (q : assoc(kind, ['q1 = 0, 'q2 = 1, 'q3 = 2, 'q4 = 3]),
+        th : float(q*%pi/2 + (%pi/2)*(0.15 + random(0.7))),
+        float(m*cos(th)) + %i*float(m*sin(th))))$
+
+fs_relationp(f) := not atom(f) and member(op(f), [">", ">=", "<", "<="])$
+
+fs_constp(x) := constantp(x) and freeof(%i, x) and numberp(float(x))$
+
+/* If fact f bounds v by a constant, return [lower or upper, value, strict],
+   otherwise false. */
+fs_bound(v, f) := block([o : op(f), c],
+  if lhs(f) = v and fs_constp(rhs(f)) then c : rhs(f)
+  elseif rhs(f) = v and fs_constp(lhs(f)) then (
+    c : lhs(f),
+    o : assoc(o, [">" = "<", ">=" = "<=", "<" = ">", "<=" = ">="]))
+  else return(false),
+  [if o = ">" or o = ">=" then 'lower else 'upper, float(c), is(o = ">" or o = "<")])$
+
+/* Tightest bound from a list of [value, strict] pairs. Integer bounds are
+   rounded inward. */
+fs_tightest(bs, kind, side) := block([vals],
+  vals : map(lambda([p],
+           if kind # 'integer then p[1]
+           elseif side = 'lower then (if p[2] then floor(p[1]) + 1 else ceiling(p[1]))
+           else (if p[2] then ceiling(p[1]) - 1 else floor(p[1]))), bs),
+  if side = 'lower then lmax(vals) else lmin(vals))$
+
+/* Sampling domain of variable v given the facts fl: [complex], or
+   [real, lo, hi] or [integer, lo, hi] where lo and hi may be minf and inf.
+   A variable in any inequality is real. */
+fs_domain(v, fl) := block([kind : 'complex, lows : [], highs : [], b],
+  if featurep(v, 'integer) then kind : 'integer
+  elseif featurep(v, 'real) then kind : 'real,
+  for f in fl do
+    if fs_relationp(f) and not freeof(v, f) then (
+      if kind = 'complex then kind : 'real,
+      b : fs_bound(v, f),
+      if b # false then
+        (if b[1] = 'lower then lows : cons(rest(b), lows) else highs : cons(rest(b), highs))),
+  if kind = 'complex then ['complex]
+  else [kind,
+        if lows = [] then 'minf else fs_tightest(lows, kind, 'lower),
+        if highs = [] then 'inf else fs_tightest(highs, kind, 'upper)])$
+
+/* Value of variable j with domain d for draw k, or false if the domain is
+   empty. An unbounded real takes its sign from the draw's kind. A
+   half-open real interval extends 2 beyond its finite end. */
+fs_domain_value(d, k, j, rows) := block([lo, hi, kc : fs_kind(k, j, rows)],
+  if d[1] = 'complex then fs_kind_value(kc[1], kc[2])
+  elseif d[1] = 'real then (
+    lo : d[2], hi : d[3],
+    if lo = 'minf and hi = 'inf then
+      (if member(kc[1], ['neg, 'q2, 'q3]) then fs_kind_value('neg, kc[2])
+       else fs_kind_value('pos, kc[2]))
+    else (
+      if lo = 'minf then lo : hi - 2.0,
+      if hi = 'inf then hi : lo + 2.0,
+      float(lo + random(1.0)*(hi - lo))))
+  else (
+    lo : if d[2] # 'minf then d[2] elseif d[3] # 'inf then d[3] - 10 else -5,
+    hi : if d[3] # 'inf then d[3] else lo + 10,
+    if hi < lo then false else lo + random(hi - lo + 1)))$
+
+/* Facts that are not simple bounds and only mention variables in vars.
+   Test points must satisfy them. */
+fs_filters(vars, fl) := block([vs : setify(vars)],
+  sublist(fl, lambda([f], block([fv],
+    if not fs_relationp(f) then return(false),
+    fv : listofvars(f),
+    subsetp(setify(fv), vs)
+      and not (length(fv) = 1 and fs_bound(first(fv), f) # false)))))$
+
+/* One assignment [v1 = a1, ...] for draw k, or false. */
+fs_draw(vars, doms, k, rows) := block([a : [], v, ok : true],
+  for i : 1 thru length(vars) while ok do (
+    v : fs_domain_value(doms[i], k, i, rows),
+    if v = false then ok : false else a : endcons(vars[i] = v, a)),
+  if ok then a else false)$
+
+/* Value of g at assignment a as [realpart, imagpart], or false. fs_num_value
+   in fsimp.lisp evaluates bottom-up with Lisp numbers, so every function
+   receives a number and returns its principal value. (rectform applied to a
+   whole expression would not: it computes carg(p/q) as carg(p) - carg(q),
+   which can leave (-%pi, %pi].) */
+fs_value(g, a) := fs_num_value(g, a)$
+
+/* The same in bigfloat, evaluated bottom-up in Maxima, for rechecking a
+   float mismatch. */
+fs_bvalue(g, a) := block([r, v, ratprint : false, errormsg : false, fpprec : 40],
+  r : errcatch(scanmap(lambda([u], bfloat(rectform(u))),
+                       subst(map(lambda([q], lhs(q) = bfloat(rhs(q))), a), g), bottomup)),
+  if r = [] then return(false),
+  v : first(r),
+  if numberp(realpart(v)) and numberp(imagpart(v)) then [realpart(v), imagpart(v)] else false)$
+
+fs_absv(v) := sqrt(v[1]^2 + v[2]^2)$
+fs_dist(u, v) := sqrt((u[1] - v[1])^2 + (u[2] - v[2])^2)$
+
+/* Draw points from doms that satisfy filters and where g evaluates.
+   Returns [points, values]. */
+fs_sample(g, vars, doms, filters, rows) := block([pts : [], vals : [], tries : 0, a, v],
+  while length(pts) < fs_check_npoints and tries < fs_check_maxtries do (
+    tries : tries + 1,
+    a : fs_draw(vars, doms, tries, rows),
+    if a # false and every(lambda([f], is(subst(a, f)) = true), filters) then (
+      v : fs_value(g, a),
+      if v # false then (pts : endcons(a, pts), vals : endcons(v, vals)))),
+  [pts, vals])$
+
+/*******************************************/
+/*         Unknown functions               */
+/*******************************************/
+
+/* true if f applied to n floats gives a number. */
+fs_numeric_fnp(f, n) := block([r, errormsg : false],
+  r : errcatch(float(apply(f, makelist(0.37 + 0.11*k, k, 1, n)))),
+  r # [] and numberp(first(r)))$
+
+/* Stand-in for an unknown function with name hash h: a fixed function of
+   its arguments with no special identities. Distinct names get distinct
+   coefficients, so f(x) - g(x) does not collapse. */
+fs_standin(h, as) := block([n : length(as)],
+  exp(sum((3/10 + mod(31*h + 17*k, 101)/202) * as[k], k, 1, n))
+  + sum((1/5 + mod(13*h + 29*k, 97)/194) * as[k]^3, k, 1, n) + 1/2)$
+
+/* e with every function that has no numeric definition replaced by its
+   stand-in. If two expressions agree for every choice of those functions,
+   they agree for the stand-ins. */
+fs_generic_form(e) := block([g : e, h],
+  for p in fs_function_ops(e) do
+    if not fs_numeric_fnp(p[1], p[2]) then (
+      h : fs_name_hash(p[1]),
+      g : subst(buildq([h], lambda([[as]], fs_standin(h, as))), p[1], g)),
+  g)$
+
+/*******************************************/
+/*         Check                           */
+/*******************************************/
+
+/* Variables of e, those inside a function with a branch cut first, so they
+   take the columns of the covering design with full pair coverage. */
+fs_ordered_vars(e) := block([vs : listofvars(e), bv : fs_branch_vars(e)],
+  append(sublist(vs, lambda([v], member(v, bv))),
+         sublist(vs, lambda([v], not member(v, bv)))))$
+
+fs_points_for(e) := block([vars : fs_ordered_vars(e), g : fs_generic_form(e), fl : facts(),
+                           doms, filters, rows, res],
+  doms : map(lambda([v], fs_domain(v, fl)), vars),
+  filters : fs_filters(vars, fl),
+  rows : fs_kind_rows(length(vars)),
+  res : fs_sample(g, vars, doms, filters, rows),
+  if length(res[1]) < fs_check_npoints/2
+     and (filters # [] or some(lambda([d], d[1] # 'complex), doms)) then (
+    if fsdebug >= 1 then print("fsimp: cannot sample under the assumptions, using unconstrained points"),
+    res : fs_sample(g, vars, makelist(['complex], length(vars)), [], rows)),
+  [if length(res[1]) >= fs_check_minpoints then 'numeric else 'unverifiable,
+   g, res[1], res[2]])$
+
+/* Prepare the check for input e: [mode, generic form, points, values],
+   where mode is numeric or unverifiable. Seeds the random state for
+   reproducible points and restores the user's state afterwards. */
+fs_check_setup(e) := block([saved : make_random_state(false), r],
+  set_random_state(make_random_state(fs_check_seed)),
+  r : errcatch(fs_points_for(e)),
+  set_random_state(saved),
+  if r = [] then error("fsimp: could not prepare the equivalence check for", e),
+  first(r))$
+
+/* true if candidate c agrees with the prepared input at every test point.
+   A float mismatch is rechecked in bigfloat before rejecting. */
+fs_equivalent(chk, c) := block([gc : fs_generic_form(c), pts : chk[3], vals : chk[4],
+                                cv, ok : true, i : 1],
+  while ok and i <= length(pts) do (
+    cv : fs_value(gc, pts[i]),
+    if cv = false then ok : false
+    elseif fs_dist(cv, vals[i]) > fs_check_tol*(1 + fs_absv(vals[i])) then
+      ok : fs_bigfloat_agree(chk[2], gc, pts[i]),
+    i : i + 1),
+  ok)$
+
+fs_bigfloat_agree(g, gc, a) := block([o : fs_bvalue(g, a), c : fs_bvalue(gc, a)],
+  o # false and c # false and is(fs_dist(c, o) <= fs_check_tol*(1 + fs_absv(o))))$
+
+/* Decide whether fsimp may accept candidate c, produced by transform t.
+   chk is false when checking is off. safe says whether every transform on
+   the candidate's path preserves value everywhere. */
+fs_accept(chk, c, safe, t) := block([ok],
+  if chk = false then return(true),
+  ok : if chk[1] = 'numeric then fs_equivalent(chk, c) else safe,
+  if not ok and fsdebug >= 1 then print("rejected", t, ":", c),
+  ok)$

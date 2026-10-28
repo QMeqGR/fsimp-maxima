@@ -6,6 +6,9 @@
        '(("fsdebug"
           "fsimp_html/index.html"
           "index-fsdebug")
+         ("fs_check"
+          "fsimp_html/index.html"
+          "index-fs_005fcheck")
          ("fullsimp"
           "fsimp_html/index.html"
           "index-fullsimp"))))

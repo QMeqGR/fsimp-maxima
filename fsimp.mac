@@ -27,7 +27,8 @@ block([fs_dir : if stringp(load_pathname) then pathname_directory(load_pathname)
   for fs_f in [["fsimp.lisp", "fsimp.lisp"],
                ["docs/fsimp-index.lisp", "fsimp-index.lisp"],
                ["docs/fsimp-index-html.lisp", "fsimp-index-html.lisp"],
-               ["fstrgsimp.mac", "fstrgsimp.mac"]] do
+               ["fstrgsimp.mac", "fstrgsimp.mac"],
+               ["fscheck.mac", "fscheck.mac"]] do
     load(if fs_dir = false then fs_f[2] else sconcat(fs_dir, fs_f[1])))$
 
 /* Maxima's trigsimp, which fullsimp uses, declares a as a pattern variable
@@ -53,8 +54,11 @@ For example, expand should always be before combine, etc.
 fsimp(expr, r) :=
     block([exprSize, smallestExpr, smallestExprSize, simpdExpr,
       simpdExprSize,origExprSize,L,loopmax:2,sizefactor:0.8,
-      fpprintprec:5],
+      fpprintprec:5, chk, smallestSafe:true, simpdSafe],
       if numberp(expr)=true then return(expr),
+      /* candidates are checked against the input, see fscheck.mac */
+      chk : if fs_check then fs_check_setup(expr) else false,
+      if fsdebug>1 and chk#false then print("# equivalence check mode: ",chk[1]),
       if fsdebug>1 then print("# sizefactor variable: ",sizefactor),
       origExprSize: exprSize : fscost(expr),
       if fsdebug=1 then print("original expression size: ",exprSize),
@@ -78,11 +82,17 @@ fsimp(expr, r) :=
              if fsdebug>1 then print(r[i],"-- new size -->",simpdExprSize),
              if fsdebug>3 then display(simpdExpr),
 
+             /* a candidate equal to the current state needs no new check */
+             simpdSafe : smallestSafe and
+                         (simpdExpr = smallestExpr or member(r[i], fs_safe_transforms)),
+
              /* if the expression is smaller always take the step */
-             if simpdExprSize <= smallestExprSize then
+             if simpdExprSize <= smallestExprSize and
+                (simpdExpr = smallestExpr or fs_accept(chk, simpdExpr, simpdSafe, r[i])) then
              block(
                  smallestExpr : simpdExpr,
                  smallestExprSize : simpdExprSize,
+                 smallestSafe : simpdSafe,
                  if fsdebug>1 then print(">>>>> redefining smallestExpr: ",smallestExprSize),
                  if simpdExprSize < exprSize then
                  block(
@@ -90,15 +100,16 @@ fsimp(expr, r) :=
                      exprSize : smallestExprSize
                  )
              )
-             else
+             else if simpdExprSize > smallestExprSize then
              block([t1],
                t1: (simpdExprSize - smallestExprSize) / smallestExprSize,
                if fsdebug>1 then print("t1=",float(t1)),
-               if t1 < sizefactor then
+               if t1 < sizefactor and fs_accept(chk, simpdExpr, simpdSafe, r[i]) then
                block(
                  if fsdebug>1 then print(">>>>>> trying bigger expr"),
                  smallestExpr : simpdExpr,
-                 smallestExprSize : simpdExprSize
+                 smallestExprSize : simpdExprSize,
+                 smallestSafe : simpdSafe
              ))
 
          )

@@ -93,6 +93,25 @@ each variable, and each name of a function Maxima has no simplifier for
 variables or such functions therefore leaves the size of every
 expression unchanged.
 
+Some core routines, such as @code{radcan}, @code{rootscontract} and
+@code{logcontract}, rewrite expressions in ways that are only valid for
+part of the complex plane. For example @code{radcan} turns
+@code{sqrt(x^2+2*x+1)} into @code{x+1}, which is wrong for @code{x < -1}.
+So @code{fullsimp} checks every candidate against the input expression
+numerically, at a fixed set of test points, and discards any candidate
+that disagrees at a point. The test points cover positive and negative
+reals and all four complex quadrants, and they respect the
+@code{assume} database and @code{declare}d features: after
+@code{assume(x > -1)}, @code{fullsimp(sqrt(x^2+2*x+1))} returns
+@code{x+1}. See @code{fs_check}.
+
+The rtest files @code{rtest_fsimp1.mac} to @code{rtest_fsimp3.mac} and
+@code{rtest_fsimp_check.mac} test the package. @code{tests/run_rtests.sh}
+runs each file in its own Maxima process and reports pass counts and
+timings. @code{tests/fsimp_audit_rtests.mac} checks that every expected result
+in the rtest files equals its input numerically, independently of
+@code{fs_check}.
+
 E. Majzoub.
 
 @node Functions and Variables for fsimp, , Introduction to package fsimp, Top
@@ -101,6 +120,46 @@ E. Majzoub.
 @defvr {Variable} fsdebug
 Setting the variable @code{fsdebug} to 1 will allow the user to see
 the fsimp function operations, list selection of simplification routines, etc.
+With @code{fsdebug} at 1 or more, each candidate rejected by the
+equivalence check is printed together with the routine that produced it,
+and a note is printed when the assumptions leave too few test points, in
+which case the check samples without them.
+@end defvr
+
+@anchor{fs_check}
+@defvr {Variable} fs_check
+Default value: @code{true}
+
+When @code{fs_check} is @code{true}, @code{fullsimp} only returns
+expressions equal in value to its input. It evaluates the input and each
+candidate at the same test points and rejects a candidate that disagrees
+at any of them. The test points are chosen so that every pair of
+variables takes every combination of sign and quadrant, and they follow
+the @code{assume} database: a variable with @code{assume(x > 0)} is only
+sampled at positive values, so rewrites that hold for positive @code{x}
+are accepted. Functions with no numeric definition, such as an undefined
+@code{f(x)} or a quoted @code{'f(x)}, are replaced by fixed stand-in
+functions for the comparison. Values follow Maxima's own conventions, so
+an odd root of a negative number is its real root: @code{(-8)^(1/3)} is
+@code{-2}, and a rewrite of @code{%e^(log(x)/3)} to @code{x^(1/3)} is
+rejected because the two differ for negative @code{x}.
+
+When the input cannot be evaluated numerically at all, for example
+because it contains an unevaluated integral, only candidates produced by
+routines that preserve value everywhere (such as @code{ratsimp},
+@code{factor} and @code{trigsimp}) are accepted. Routines added through
+@code{fs_custom_simp} never count as preserving value.
+
+When fewer than half the test points can be drawn under the
+assumptions, for example because they are contradictory or hard to
+satisfy, the check uses points that ignore the assumptions instead.
+
+The check is numeric, so it cannot see differences confined to isolated
+points. @code{(x^2-1)/(x-1)} still simplifies to @code{x+1}, as it does
+elsewhere in Maxima.
+
+Setting @code{fs_check} to @code{false} turns the check off and gives
+the results of earlier versions.
 @end defvr
 
 @anchor{fullsimp}
@@ -154,6 +213,22 @@ command line as shown in the last example below.
                                     %i p     t
 (%o4)                           - %e     cot(-)
                                              2
+@end group
+@end example
+
+The equivalence check keeps rewrites that are not valid for all
+@code{x} out of the result, unless assumptions make them valid.
+
+@example
+@group
+(%i1) load("fsimp.mac")$
+(%i2) fullsimp(sqrt(x^2+2*x+1));
+                                       2
+(%o2)                        sqrt(x  + 2 x + 1)
+(%i3) assume(x>-1);
+(%o3)                              [x > - 1]
+(%i4) fullsimp(sqrt(x^2+2*x+1));
+(%o4)                               x + 1
 @end group
 @end example
 

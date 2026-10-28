@@ -108,6 +108,25 @@ each variable, and each name of a function Maxima has no simplifier for
 variables or such functions therefore leaves the size of every
 expression unchanged.
 </p>
+<p>Some core routines, such as <code class="code">radcan</code>, <code class="code">rootscontract</code> and
+<code class="code">logcontract</code>, rewrite expressions in ways that are only valid for
+part of the complex plane. For example <code class="code">radcan</code> turns
+<code class="code">sqrt(x^2+2*x+1)</code> into <code class="code">x+1</code>, which is wrong for <code class="code">x &lt; -1</code>.
+So <code class="code">fullsimp</code> checks every candidate against the input expression
+numerically, at a fixed set of test points, and discards any candidate
+that disagrees at a point. The test points cover positive and negative
+reals and all four complex quadrants, and they respect the
+<code class="code">assume</code> database and <code class="code">declare</code>d features: after
+<code class="code">assume(x &gt; -1)</code>, <code class="code">fullsimp(sqrt(x^2+2*x+1))</code> returns
+<code class="code">x+1</code>. See <code class="code">fs_check</code>.
+</p>
+<p>The rtest files <code class="code">rtest_fsimp1.mac</code> to <code class="code">rtest_fsimp3.mac</code> and
+<code class="code">rtest_fsimp_check.mac</code> test the package. <code class="code">tests/run_rtests.sh</code>
+runs each file in its own Maxima process and reports pass counts and
+timings. <code class="code">tests/fsimp_audit_rtests.mac</code> checks that every expected result
+in the rtest files equals its input numerically, independently of
+<code class="code">fs_check</code>.
+</p>
 <p>E. Majzoub.
 </p>
 <hr>
@@ -121,6 +140,46 @@ expression unchanged.
 <dt class="defvr def-line" id="index-fsdebug"><span class="category-def">Variable: </span><span><strong class="def-name">fsdebug</strong><a class="copiable-link" href="#index-fsdebug"> &para;</a></span></dt>
 <dd><p>Setting the variable <code class="code">fsdebug</code> to 1 will allow the user to see
 the fsimp function operations, list selection of simplification routines, etc.
+With <code class="code">fsdebug</code> at 1 or more, each candidate rejected by the
+equivalence check is printed together with the routine that produced it,
+and a note is printed when the assumptions leave too few test points, in
+which case the check samples without them.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fcheck"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fcheck"><span class="category-def">Variable: </span><span><strong class="def-name">fs_check</strong><a class="copiable-link" href="#index-fs_005fcheck"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">true</code>
+</p>
+<p>When <code class="code">fs_check</code> is <code class="code">true</code>, <code class="code">fullsimp</code> only returns
+expressions equal in value to its input. It evaluates the input and each
+candidate at the same test points and rejects a candidate that disagrees
+at any of them. The test points are chosen so that every pair of
+variables takes every combination of sign and quadrant, and they follow
+the <code class="code">assume</code> database: a variable with <code class="code">assume(x &gt; 0)</code> is only
+sampled at positive values, so rewrites that hold for positive <code class="code">x</code>
+are accepted. Functions with no numeric definition, such as an undefined
+<code class="code">f(x)</code> or a quoted <code class="code">'f(x)</code>, are replaced by fixed stand-in
+functions for the comparison. Values follow Maxima&rsquo;s own conventions, so
+an odd root of a negative number is its real root: <code class="code">(-8)^(1/3)</code> is
+<code class="code">-2</code>, and a rewrite of <code class="code">%e^(log(x)/3)</code> to <code class="code">x^(1/3)</code> is
+rejected because the two differ for negative <code class="code">x</code>.
+</p>
+<p>When the input cannot be evaluated numerically at all, for example
+because it contains an unevaluated integral, only candidates produced by
+routines that preserve value everywhere (such as <code class="code">ratsimp</code>,
+<code class="code">factor</code> and <code class="code">trigsimp</code>) are accepted. Routines added through
+<code class="code">fs_custom_simp</code> never count as preserving value.
+</p>
+<p>When fewer than half the test points can be drawn under the
+assumptions, for example because they are contradictory or hard to
+satisfy, the check uses points that ignore the assumptions instead.
+</p>
+<p>The check is numeric, so it cannot see differences confined to isolated
+points. <code class="code">(x^2-1)/(x-1)</code> still simplifies to <code class="code">x+1</code>, as it does
+elsewhere in Maxima.
+</p>
+<p>Setting <code class="code">fs_check</code> to <code class="code">false</code> turns the check off and gives
+the results of earlier versions.
 </p></dd></dl>
 
 <a class="anchor" id="fullsimp"></a><dl class="first-deffn def-block">
@@ -173,6 +232,20 @@ command line as shown in the last example below.
                                     %i p     t
 (%o4)                           - %e     cot(-)
                                              2
+</pre></div></div>
+
+<p>The equivalence check keeps rewrites that are not valid for all
+<code class="code">x</code> out of the result, unless assumptions make them valid.
+</p>
+<div class="example">
+<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;)$
+(%i2) fullsimp(sqrt(x^2+2*x+1));
+                                       2
+(%o2)                        sqrt(x  + 2 x + 1)
+(%i3) assume(x&gt;-1);
+(%o3)                              [x &gt; - 1]
+(%i4) fullsimp(sqrt(x^2+2*x+1));
+(%o4)                               x + 1
 </pre></div></div>
 
 <p>If you wish to exclude particular simplification routines,

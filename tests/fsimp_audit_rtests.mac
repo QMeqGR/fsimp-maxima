@@ -1,0 +1,82 @@
+/* Check every expected result in the rtest files numerically against the
+   expression passed to fullsimp. A case is reported when the two disagree
+   at random positive reals, negative reals or complex points.
+
+   This deliberately does not use fsimp's own equivalence check, so it can
+   serve as an independent cross-check of the test expectations.
+
+   From the repository root:
+     maxima --very-quiet -r 'batchload("tests/fsimp_audit_rtests.mac")$ quit()$'
+*/
+
+load("stringproc")$
+
+audit_dir : sconcat(pathname_directory(load_pathname), "../")$
+
+/* Read a file into one string, with comments removed. */
+audit_read(path) := block([s : openr(path), line, text : ""],
+  while (line : readline(s)) # false do text : sconcat(text, " ", line),
+  close(s),
+  block([i, j],
+    while (i : ssearch("/*", text)) # false do (
+      j : ssearch("*/", text, 'sequal, i),
+      text : sconcat(substring(text, 1, i), " ", substring(text, j + 2)))),
+  text)$
+
+/* Pairs of [input, expected] strings, skipping the header pair. */
+audit_cases(path) := block([stmts],
+  stmts : sublist(map(lambda([x], strim(" ", x)), split(audit_read(path), ";", false)),
+                  lambda([x], x # "")),
+  rest(makelist([stmts[2*k - 1], stmts[2*k]], k, 1, floor(length(stmts)/2))))$
+
+/* Values for one variable: all positive, all negative, a random sign per
+   variable, or a random complex value per variable. */
+audit_point(mode) := if mode = 'pos then 0.2 + random(1.8)
+  elseif mode = 'neg then -(0.2 + random(1.8))
+  elseif mode = 'mixed then (if evenp(random(2)) then 1 else -1)*(0.2 + random(1.8))
+  else (random(3.4) - 1.7) + %i*(random(2.0) - 1.0)$
+
+/* Numeric value of e at points, evaluated bottom-up so every function gets
+   a number and returns its principal value. */
+audit_value(e, pts) := block([r, errormsg : false],
+  r : errcatch(scanmap(lambda([u], float(rectform(u))), subst(pts, e), bottomup)),
+  if r # [] and numberp(float(cabs(first(r)))) then first(r) else false)$
+
+/* true if e1 and e2 agree at 12 evaluable points, false if any point
+   disagrees, err if no point evaluates. */
+audit_agree(e1, e2, mode) := block([vs : listofvars([e1, e2]), ok : true, pts, v1, v2, good : 0, tries : 0],
+  while good < 12 and tries < 60 do (
+    tries : tries + 1,
+    pts : map(lambda([v], v = audit_point(mode)), vs),
+    v1 : audit_value(e1, pts), v2 : audit_value(e2, pts),
+    if v1 # false and v2 # false then (
+      good : good + 1,
+      if cabs(v1 - v2) > 1e-7 * (1 + cabs(v1)) then ok : false)),
+  if good = 0 then 'err else ok)$
+
+/* The argument of a fullsimp(...) test input, or false for other inputs. */
+audit_arg(s) := block([e : parse_string(s)],
+  if not atom(e) and op(e) = 'fullsimp then first(args(e)) else false)$
+
+block([files : sort(map(lambda([p], last(split(p, "/"))),
+                        directory(sconcat(audit_dir, "rtest_fsimp*.mac")))),
+       total : 0, bad : 0, unchecked : 0, state : make_random_state(false)],
+  set_random_state(make_random_state(20261028)),
+  for f in files do
+    for c in sublist(audit_cases(sconcat(audit_dir, f)), lambda([c], audit_arg(c[1]) # false)) do
+    block([inp, expd, rp, rn, rm, rc],
+      total : total + 1,
+      inp : audit_arg(c[1]), expd : parse_string(c[2]),
+      rp : audit_agree(inp, expd, 'pos),
+      rn : audit_agree(inp, expd, 'neg),
+      rm : audit_agree(inp, expd, 'mixed),
+      rc : audit_agree(inp, expd, 'cplx),
+      if rp = 'err and rn = 'err and rm = 'err and rc = 'err then (
+        unchecked : unchecked + 1,
+        print("NO NUMERIC VALUE", f, " ", c[1]))
+      elseif not (rp = true and rn = true and rm = true and rc = true) then (
+        bad : bad + 1,
+        print("NOT AN IDENTITY", f, " pos:", rp, " neg:", rn, " mixed:", rm, " complex:", rc),
+        print("    ", c[1], " => ", c[2]))),
+  set_random_state(state),
+  print("audited", total, "cases,", bad, "not identities,", unchecked, "with no numeric value"))$

@@ -120,7 +120,7 @@ cat $packname.texi | grep "(%i" | \
 $MAXIMA -q -b examples.txt > rtest.tmp.out;
 
 cat rtest.tmp.out | grep -v "examples.txt" | grep -v "Loading" \
-    | awk '{for(i=2;i<NF+1;i++){printf("%s ",$i);printf(";\n");}}'\
+    | awk '{for(i=2;i<NF+1;i++){printf("%s ",$i)};printf(";\n");}'\
 	  > rtest_example_$packname.mac;
 
 if [ $debug -eq 0 ]; then
