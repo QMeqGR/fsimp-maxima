@@ -1,0 +1,47 @@
+/* Check that fullsimp never evaluates the variables of its input.
+
+   From the repository root:
+     maxima --very-quiet -r 'batchload("tests/fsimp_check_collisions.mac")$ quit()$'
+*/
+
+col_dir : sconcat(pathname_directory(load_pathname), "../")$
+file_search_maxima : append([sconcat(col_dir, "###.mac"), sconcat(col_dir, "docs/###.mac")],
+                            file_search_maxima)$
+file_search_lisp : append([sconcat(col_dir, "###.lisp"), sconcat(col_dir, "docs/###.lisp")],
+                          file_search_lisp)$
+load("fsimp")$
+
+/* fullsimp must never evaluate the variables of its input. For each name v,
+   call fullsimp on expressions in v twice: once plainly, and once with v
+   bound to a sentinel value in a frame outside fullsimp. If anything in the
+   search evaluates v, it sees either that sentinel or a local variable of
+   the same name, and the result differs. The names include every local
+   variable and parameter of the functions on fullsimp's call path. Test
+   locals use a %t_ prefix. */
+%t_names : [p, q, r, i, L, e, t1, expr, chk, tmp, tmpsz, Li, fsrulesN, remlist,
+  simplist, trigfuns, trigflag, expflag, triglist, loglist, explist, c, s, n,
+  anchor, cands, pool, expanded, seen, round, grown, cost, safe, res,
+  sizefactor, loopmax, smallestExpr, exprSize, origExprSize, simpdExpr,
+  simpdExprSize, simpdSafe, smallestSafe, a, b, z, k, u, v, w, f, g, h, as,
+  vars, doms, rows, pts, vals, gc, cv, ok, fl, x0, sorted, ncheap, best, up,
+  saved, kc, lo, hi, kind, lows, highs, fv, vs, th, m, row, o, bs, side]$
+%t_bases : [(cos(t)+1)/((%i*sin(qq)-cos(qq))*sin(t)),
+            sqrt(qq^2 + 2*qq + 1) + sin(t)^2 + cos(t)^2,
+            log(qq) + log(t) - log(qq*t) + tan(qq) + cot(qq),
+            gamma(qq + 1)/gamma(qq) + (qq^2 - 1)/(qq - 1)]$
+%t_bad : 0$
+%t_runs : 0$
+for %t_m in ['sweep, 'beam] do (
+  fs_search : %t_m,
+  for %t_v in %t_names do
+    for %t_b in %t_bases do block([%t_e, %t_plain, %t_bound],
+      %t_e : subst(qq = %t_v, %t_b),
+      %t_plain : fullsimp(%t_e),
+      %t_bound : apply(buildq([%t_s : %t_v, %t_x : %t_e],
+                              lambda([], block([%t_s : 12345], fullsimp('%t_x)))), []),
+      %t_runs : %t_runs + 1,
+      if not is(%t_plain = %t_bound) then (
+        %t_bad : %t_bad + 1,
+        print("EVALUATED", %t_m, %t_v, "plain", %t_plain, "bound", %t_bound))))$
+fs_search : 'beam$
+print("collision test:", %t_bad, "differences over", %t_runs, "runs")$

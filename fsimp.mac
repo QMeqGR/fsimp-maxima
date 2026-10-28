@@ -51,14 +51,37 @@ For example, expand should always be before combine, etc.
 
 */
 
+/* Search options. fs_search selects the beam search (fs_beam) or the
+   original sweep (fs_sweep). fs_beam_width and fs_max_rounds bound the
+   beam search. */
+define_variable(fs_search, 'beam, any)$
+define_variable(fs_beam_width, 4, any)$
+define_variable(fs_max_rounds, 4, any)$
+
+fs_check_options() := (
+  if not member(fs_search, ['beam, 'sweep]) then
+    error("fsimp: fs_search must be beam or sweep, found", fs_search),
+  if not (integerp(fs_beam_width) and fs_beam_width >= 1) then
+    error("fsimp: fs_beam_width must be a positive integer, found", fs_beam_width),
+  if not (integerp(fs_max_rounds) and fs_max_rounds >= 1) then
+    error("fsimp: fs_max_rounds must be a positive integer, found", fs_max_rounds))$
+
 fsimp(expr, r) :=
-    block([exprSize, smallestExpr, smallestExprSize, simpdExpr,
-      simpdExprSize,origExprSize,L,loopmax:2,sizefactor:0.8,
-      fpprintprec:5, chk, smallestSafe:true, simpdSafe],
+    block([chk],
+      fs_check_options(),
       if numberp(expr)=true then return(expr),
       /* candidates are checked against the input, see fscheck.mac */
       chk : if fs_check then fs_check_setup(expr) else false,
       if fsdebug>1 and chk#false then print("# equivalence check mode: ",chk[1]),
+      if fs_search = 'sweep then fs_sweep(expr, r, chk) else fs_beam(expr, r, chk)
+);
+
+/* The original search: sweep the transform list loopmax times, keeping one
+   current state. */
+fs_sweep(expr, r, chk) :=
+    block([exprSize, smallestExpr, smallestExprSize, simpdExpr,
+      simpdExprSize,origExprSize,L,loopmax:2,sizefactor:0.8,
+      fpprintprec:5, smallestSafe:true, simpdSafe],
       if fsdebug>1 then print("# sizefactor variable: ",sizefactor),
       origExprSize: exprSize : fscost(expr),
       if fsdebug=1 then print("original expression size: ",exprSize),
@@ -119,6 +142,68 @@ fsimp(expr, r) :=
    return(expr)
 );
 
+/* Beam search. Candidates are records [expr, cost, safe, index], where
+   index is the discovery order and safe says whether every transform on
+   the candidate's path preserves value everywhere. The pool holds the
+   input (the anchor, never evicted, so every transform sees the original),
+   the cheapest candidates, and one uphill candidate up to sizefactor more
+   costly than the best, which keeps the annealing idea of the sweep. Each
+   round applies every transform to every pool member not expanded before.
+   The search stops when a round adds no new pool member, or after
+   fs_max_rounds rounds. Ties in cost go to the earlier discovery. */
+
+fs_rec_before(a, b) := a[2] < b[2] or (a[2] = b[2] and a[4] < b[4])$
+
+fs_beam_pool(cands, anchor, sizefactor) :=
+    block([w : fs_beam_width, sorted, rest, pool, ncheap, best, up],
+      sorted : sort(cands, 'fs_rec_before),
+      if w = 1 then return([first(sorted)]),
+      rest : sublist(sorted, lambda([c], c[4] # anchor[4])),
+      ncheap : min(if w >= 3 then w - 2 else 1, length(rest)),
+      pool : cons(anchor, makelist(rest[k], k, 1, ncheap)),
+      if w >= 3 then (
+        best : first(sorted)[2],
+        up : sublist(rest, lambda([c], c[2] > best and c[2] <= (1 + sizefactor)*best
+                                       and not member(c[4], map(lambda([p], p[4]), pool)))),
+        if up # [] then pool : endcons(first(up), pool)),
+      pool)$
+
+fs_beam(expr, r, chk) :=
+    block([sizefactor : 0.8, fpprintprec : 5, seen : fs_seen_new(),
+      anchor, cands, pool, expanded : [], n : 0, round : 0, grown : true,
+      c, s, cost, safe, res],
+      anchor : [expr, fscost(expr), true, 0],
+      fs_seen_add(seen, string(expr)),
+      cands : [anchor],
+      pool : [anchor],
+      if fsdebug=1 then print("original expression size: ", anchor[2]),
+      while grown and round < fs_max_rounds do (
+        round : round + 1,
+        for p in pool do
+          if not member(p[4], expanded) then (
+            expanded : cons(p[4], expanded),
+            for i : 1 thru length(r) do (
+              /* always combine after every simp function */
+              c : combine( r[i](p[1]) ),
+              s : string(c),
+              if fs_seen_add(seen, s) then (
+                cost : fs_conssize(c) + slength(s) - fs_name_excess(c),
+                safe : p[3] and member(r[i], fs_safe_transforms),
+                if fsdebug>1 then print(r[i], "-- new size -->", cost),
+                if fs_accept(chk, c, safe, r[i]) then (
+                  n : n + 1,
+                  cands : endcons([c, cost, safe, n], cands))))),
+        pool : fs_beam_pool(cands, anchor, sizefactor),
+        grown : some(lambda([p], not member(p[4], expanded)), pool),
+        if fsdebug>1 then print("-------------------------- round", round,
+                                "pool sizes:", map(second, pool))),
+      if fsdebug>1 then print("# beam search stopped after round", round, ":",
+          if grown then "fs_max_rounds reached" else "no new pool members"),
+      res : first(sort(cands, 'fs_rec_before)),
+      if fsdebug=1 then print("final expr size: ", res[2]),
+      res[1]
+);
+
 
 /* Notes:
 1. don't use sqrtdenest. It chokes on subscripted variables like c[1], etc.
@@ -128,7 +213,11 @@ fsimpall(expr,[remlist]) :=
    if listp (expr) or setp (expr) then
    map(lambda([x],fsimpall(x,[remlist])),expr)
    else if matrixp (expr) then matrixmap(lambda([x],fsimpall(x,[remlist])),expr)
-   else block([ratprint : false,
+   else block([ratprint : false], fsimp(expr, fs_simplist(expr, remlist)));
+
+/* The list of simplification routines fullsimp uses for expr, minus the
+   routines named in remlist. */
+fs_simplist(expr, remlist) := block([
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,csc,cot,
              cosh,sinh,acosh,asinh,tanh,atanh,csch,coth],
    trigflag:0,expflag:0,
@@ -165,8 +254,7 @@ fsimpall(expr,[remlist]) :=
   if fsdebug=1 then display(fs_custom_simp),
   if properties(fs_custom_simp)#[] then simplist:append(simplist,fs_custom_simp),
 
-  /* call fsimp */
-  fsimp(expr, simplist)
+  simplist
   );
 
 alias(fullsimp,fsimpall);

@@ -86,6 +86,16 @@ variable, and each name of a function Maxima has no simplifier for (such
 as an undefined ‘f’), counted as one character.  Renaming variables or
 such functions therefore leaves the size of every expression unchanged.
 
+   By default the search keeps a small pool of candidates instead of a
+single one (a beam search).  The input expression always stays in the
+pool, so every routine is applied to the original as well as to the
+intermediate results, next to the cheapest candidates found so far and
+one candidate that is allowed to be larger.  Each round applies every
+routine to every new member of the pool, and the search stops when a
+round adds nothing new.  The result is never larger than what any single
+routine produces from the input.  The original single-candidate sweep is
+still available.  See ‘fs_search’, ‘fs_beam_width’ and ‘fs_max_rounds’.
+
    Some core routines, such as ‘radcan’, ‘rootscontract’ and
 ‘logcontract’, rewrite expressions in ways that are only valid for part
 of the complex plane.  For example ‘radcan’ turns ‘sqrt(x^2+2*x+1)’ into
@@ -97,11 +107,16 @@ quadrants, and they respect the ‘assume’ database and ‘declare’d
 features: after ‘assume(x > -1)’, ‘fullsimp(sqrt(x^2+2*x+1))’ returns
 ‘x+1’.  See ‘fs_check’.
 
-   The rtest files ‘rtest_fsimp1.mac’ to ‘rtest_fsimp3.mac’ and
-‘rtest_fsimp_check.mac’ test the package.  ‘tests/run_rtests.sh’ runs
-each file in its own Maxima process and reports pass counts and timings.
-‘tests/fsimp_audit_rtests.mac’ checks that every expected result in the
-rtest files equals its input numerically, independently of ‘fs_check’.
+   The rtest files ‘rtest_fsimp1.mac’ to ‘rtest_fsimp3.mac’,
+‘rtest_fsimp_check.mac’ and ‘rtest_fsimp_beam.mac’ test the package.
+‘tests/run_rtests.sh’ runs each file in its own Maxima process and
+reports pass counts and timings.  ‘tests/fsimp_audit_rtests.mac’ checks
+that every expected result in the rtest files equals its input
+numerically, independently of ‘fs_check’.
+‘tests/fsimp_compare_single.mac’ checks that ‘fullsimp’ is never
+costlier than any single routine applied to the input, and
+‘tests/fsimp_check_collisions.mac’ that binding a variable outside
+‘fullsimp’ never changes its result.
 
    E. Majzoub.
 
@@ -118,7 +133,8 @@ File: fsimp.info,  Node: Functions and Variables for fsimp,  Prev: Introduction 
      rejected by the equivalence check is printed together with the
      routine that produced it, and a note is printed when the
      assumptions leave too few test points, in which case the check
-     samples without them.
+     samples without them.  At 2 or more, the beam search also prints
+     the pool sizes after each round and why it stopped.
 
  -- Variable: fs_check
      Default value: ‘true’
@@ -154,6 +170,34 @@ File: fsimp.info,  Node: Functions and Variables for fsimp,  Prev: Introduction 
 
      Setting ‘fs_check’ to ‘false’ turns the check off and gives the
      results of earlier versions.
+
+ -- Variable: fs_search
+     Default value: ‘beam’
+
+     Selects the search ‘fullsimp’ uses.  With ‘beam’, it runs the beam
+     search described in the introduction, bounded by ‘fs_beam_width’
+     and ‘fs_max_rounds’.  With ‘sweep’, it runs the search of earlier
+     versions: two passes over the routine list, keeping a single
+     current expression.  Any other value is an error.
+
+ -- Variable: fs_beam_width
+     Default value: ‘4’
+
+     The number of candidates the beam search keeps in its pool: the
+     input, ‘fs_beam_width - 2’ of the cheapest candidates found so far,
+     and one candidate up to 80% larger than the cheapest.  With a width
+     of 2 the pool holds the input and the cheapest candidate.  With a
+     width of 1 it holds only the cheapest candidate, so the search
+     climbs greedily from the input.  Larger widths explore more
+     alternatives and take longer.  The value must be a positive
+     integer.
+
+ -- Variable: fs_max_rounds
+     Default value: ‘4’
+
+     The largest number of rounds the beam search runs.  It usually
+     stops earlier, as soon as a round adds no new candidate to the
+     pool.  The value must be a positive integer.
 
  -- Function: fullsimp (expr,[simp1,simp2,...])
      The ‘fullsimp’ function takes an input expression ‘expr’ and
@@ -234,13 +278,19 @@ Appendix A Function and Variable index
 * Menu:
 
 * fullsimp:                              Functions and Variables for fsimp.
-                                                               (line 50)
+                                                               (line 79)
 
  [index ]
 * Menu:
 
+* fs_beam_width:                         Functions and Variables for fsimp.
+                                                               (line 60)
 * fs_check:                              Functions and Variables for fsimp.
-                                                               (line 15)
+                                                               (line 16)
+* fs_max_rounds:                         Functions and Variables for fsimp.
+                                                               (line 72)
+* fs_search:                             Functions and Variables for fsimp.
+                                                               (line 51)
 * fsdebug:                               Functions and Variables for fsimp.
                                                                (line  6)
 
@@ -248,10 +298,13 @@ Appendix A Function and Variable index
 Tag Table:
 Node: Top282
 Node: Introduction to package fsimp629
-Node: Functions and Variables for fsimp4656
-Ref: fs_check5301
-Ref: fullsimp7182
-Node: Function and Variable Index10307
+Node: Functions and Variables for fsimp5578
+Ref: fs_check6323
+Ref: fs_search8204
+Ref: fs_beam_width8615
+Ref: fs_max_rounds9175
+Ref: fullsimp9419
+Node: Function and Variable Index12544
 
 End Tag Table
 

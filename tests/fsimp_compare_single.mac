@@ -1,0 +1,55 @@
+/* Check that fullsimp is never costlier than a single transform from its
+   own transform list (followed by combine) applied to the input, counting
+   only transforms whose result passes the equivalence check. Runs over the
+   fullsimp(...) inputs in the rtest files.
+
+   From the repository root:
+     maxima --very-quiet -r 'batchload("tests/fsimp_compare_single.mac")$ quit()$'
+*/
+
+load("stringproc")$
+
+cmp_dir : sconcat(pathname_directory(load_pathname), "../")$
+file_search_maxima : append([sconcat(cmp_dir, "###.mac"), sconcat(cmp_dir, "docs/###.mac")],
+                            file_search_maxima)$
+file_search_lisp : append([sconcat(cmp_dir, "###.lisp"), sconcat(cmp_dir, "docs/###.lisp")],
+                          file_search_lisp)$
+load("fsimp")$
+
+/* Read a file into one string, with comments removed. */
+cmp_read(path) := block([s : openr(path), line, text : ""],
+  while (line : readline(s)) # false do text : sconcat(text, " ", line),
+  close(s),
+  block([i, j],
+    while (i : ssearch("/*", text)) # false do (
+      j : ssearch("*/", text, 'sequal, i),
+      text : sconcat(substring(text, 1, i), " ", substring(text, j + 2)))),
+  text)$
+
+/* The arguments of the fullsimp(...) test inputs in a file. */
+cmp_inputs(path) := block([stmts, out : []],
+  stmts : sublist(map(lambda([x], strim(" ", x)), split(cmp_read(path), ";", false)),
+                  lambda([x], x # "")),
+  for k : 3 step 2 thru length(stmts) do block([e : parse_string(stmts[k])],
+    if not atom(e) and op(e) = 'fullsimp and length(args(e)) = 1 then
+      out : endcons(first(args(e)), out)),
+  out)$
+
+block([files : sort(map(lambda([p], last(split(p, "/"))),
+                        directory(sconcat(cmp_dir, "rtest_fsimp*.mac")))),
+       total : 0, worse : 0, unverifiable : 0],
+  for f in files do
+    for e in cmp_inputs(sconcat(cmp_dir, f)) do block([r, rc, chk],
+      total : total + 1,
+      r : fullsimp(e), rc : fscost(r),
+      chk : fs_check_setup(e),
+      if chk[1] # 'numeric then unverifiable : unverifiable + 1
+      else
+        for t in fs_simplist(e, []) do block([c],
+          c : errcatch(combine(apply(t, [e]))),
+          if c # [] and fscost(first(c)) < rc and fs_equivalent(chk, first(c)) then (
+            worse : worse + 1,
+            print("COSTLIER", f, e, "->", r, "cost", rc, "; but", t, "gives", first(c),
+                  "cost", fscost(first(c)))))),
+  print("compared", total, "inputs,", worse, "costlier than a single transform,",
+        unverifiable, "not numerically checkable"))$

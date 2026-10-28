@@ -225,3 +225,16 @@
     (if v
         (list '(mlist) (float (realpart v) 1d0) (float (imagpart v) 1d0))
         nil)))
+
+;;; Seen set for the beam search in fsimp.mac: a hash table of the string
+;;; forms of every expression the search has met, so each one is costed,
+;;; checked and expanded at most once.
+
+(defmfun $fs_seen_new ()
+  (make-hash-table :test #'equal))
+
+;; Add string S to seen set H. True if S was new, false if already seen.
+(defmfun $fs_seen_add (h s)
+  (if (gethash s h)
+      nil
+      (setf (gethash s h) t)))

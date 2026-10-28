@@ -108,6 +108,17 @@ each variable, and each name of a function Maxima has no simplifier for
 variables or such functions therefore leaves the size of every
 expression unchanged.
 </p>
+<p>By default the search keeps a small pool of candidates instead of a
+single one (a beam search). The input expression always stays in the
+pool, so every routine is applied to the original as well as to the
+intermediate results, next to the cheapest candidates found so far and
+one candidate that is allowed to be larger. Each round applies every
+routine to every new member of the pool, and the search stops when a
+round adds nothing new. The result is never larger than what any single
+routine produces from the input. The original single-candidate sweep is
+still available. See <code class="code">fs_search</code>, <code class="code">fs_beam_width</code> and
+<code class="code">fs_max_rounds</code>.
+</p>
 <p>Some core routines, such as <code class="code">radcan</code>, <code class="code">rootscontract</code> and
 <code class="code">logcontract</code>, rewrite expressions in ways that are only valid for
 part of the complex plane. For example <code class="code">radcan</code> turns
@@ -120,12 +131,16 @@ reals and all four complex quadrants, and they respect the
 <code class="code">assume(x &gt; -1)</code>, <code class="code">fullsimp(sqrt(x^2+2*x+1))</code> returns
 <code class="code">x+1</code>. See <code class="code">fs_check</code>.
 </p>
-<p>The rtest files <code class="code">rtest_fsimp1.mac</code> to <code class="code">rtest_fsimp3.mac</code> and
-<code class="code">rtest_fsimp_check.mac</code> test the package. <code class="code">tests/run_rtests.sh</code>
+<p>The rtest files <code class="code">rtest_fsimp1.mac</code> to <code class="code">rtest_fsimp3.mac</code>,
+<code class="code">rtest_fsimp_check.mac</code> and <code class="code">rtest_fsimp_beam.mac</code> test the
+package. <code class="code">tests/run_rtests.sh</code>
 runs each file in its own Maxima process and reports pass counts and
 timings. <code class="code">tests/fsimp_audit_rtests.mac</code> checks that every expected result
 in the rtest files equals its input numerically, independently of
-<code class="code">fs_check</code>.
+<code class="code">fs_check</code>. <code class="code">tests/fsimp_compare_single.mac</code> checks that
+<code class="code">fullsimp</code> is never costlier than any single routine applied to the
+input, and <code class="code">tests/fsimp_check_collisions.mac</code> that binding a variable
+outside <code class="code">fullsimp</code> never changes its result.
 </p>
 <p>E. Majzoub.
 </p>
@@ -143,7 +158,8 @@ the fsimp function operations, list selection of simplification routines, etc.
 With <code class="code">fsdebug</code> at 1 or more, each candidate rejected by the
 equivalence check is printed together with the routine that produced it,
 and a note is printed when the assumptions leave too few test points, in
-which case the check samples without them.
+which case the check samples without them. At 2 or more, the beam search
+also prints the pool sizes after each round and why it stopped.
 </p></dd></dl>
 
 <a class="anchor" id="fs_005fcheck"></a><dl class="first-defvr def-block">
@@ -180,6 +196,39 @@ elsewhere in Maxima.
 </p>
 <p>Setting <code class="code">fs_check</code> to <code class="code">false</code> turns the check off and gives
 the results of earlier versions.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fsearch"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fsearch"><span class="category-def">Variable: </span><span><strong class="def-name">fs_search</strong><a class="copiable-link" href="#index-fs_005fsearch"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">beam</code>
+</p>
+<p>Selects the search <code class="code">fullsimp</code> uses. With <code class="code">beam</code>, it runs the
+beam search described in the introduction, bounded by
+<code class="code">fs_beam_width</code> and <code class="code">fs_max_rounds</code>. With <code class="code">sweep</code>, it
+runs the search of earlier versions: two passes over the routine list,
+keeping a single current expression. Any other value is an error.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fbeam_005fwidth"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fbeam_005fwidth"><span class="category-def">Variable: </span><span><strong class="def-name">fs_beam_width</strong><a class="copiable-link" href="#index-fs_005fbeam_005fwidth"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">4</code>
+</p>
+<p>The number of candidates the beam search keeps in its pool: the input,
+<code class="code">fs_beam_width - 2</code> of the cheapest candidates found so far, and one
+candidate up to 80% larger than the cheapest. With a width of 2 the pool
+holds the input and the cheapest candidate. With a width of 1 it holds
+only the cheapest candidate, so the search climbs greedily from the
+input. Larger widths explore more alternatives and take longer. The
+value must be a positive integer.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fmax_005frounds"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fmax_005frounds"><span class="category-def">Variable: </span><span><strong class="def-name">fs_max_rounds</strong><a class="copiable-link" href="#index-fs_005fmax_005frounds"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">4</code>
+</p>
+<p>The largest number of rounds the beam search runs. It usually stops
+earlier, as soon as a round adds no new candidate to the pool. The value
+must be a positive integer.
 </p></dd></dl>
 
 <a class="anchor" id="fullsimp"></a><dl class="first-deffn def-block">
