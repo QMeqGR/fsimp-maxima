@@ -6,13 +6,13 @@ Function arguments do not need the same treatment. Tests show `f((1+cos(t))/sin(
 
 ## What Changes
 
-- Before searching, fullsimp splits a top-level sum or product into groups of terms (or factors) that share no variables, and simplifies each group separately. Terms with no variables form their own group.
+- Before searching, fullsimp splits a top-level sum or product into groups of terms (or factors) that share no variables, and simplifies each group separately, when there are at least two such groups. Terms with no variables may go with any group, because constants interact with groups: `1 - sin(x)^2` is `cos(x)^2`. A group can take all the constants, or a shift of +1 or -1 when it contains a trigonometric or hyperbolic function, so that `1 - sin(x)^2 + tan(y)^2 + 1` gives `cos(x)^2 + sec(y)^2`.
 - Each group gets the full fullsimp treatment, including further splitting of its own top-level sum or product.
-- After a split into two or more groups, fullsimp combines the group results and returns them without a whole-expression search. Groups with disjoint variables cannot cancel each other beyond their constant parts, so a whole-expression pass could only refactor. Skipping it gives up the occasional factorisation across groups, such as `(x+1)^2 - y^2` → `(x+1-y)*(x+1+y)`, in exchange for avoiding blow-ups like the `p^10 + 1` case.
+- After a split, fullsimp combines the group results and runs one more search restricted to the routines that merge terms across groups (`logcontract`, `rootscontract`), since `log(a)+log(b)` → `log(a*b)` crosses groups. It skips a full whole-expression search, giving up the occasional factorisation across groups, such as `(x+1)^2 - y^2` → `(x+1-y)*(x+1+y)`, in exchange for avoiding blow-ups like the `p^10 + 1` case.
 - The combined result still passes the equivalence check against the original input.
 - New option variable `fs_split` (default `true`). Setting it to `false` turns splitting off.
 
-This change builds on `add-equivalence-check`, which verifies each group result and the combined result. It does not depend on `add-beam-search`, and works with either search.
+This change builds on `add-equivalence-check`, which verifies each group result and the combined result. It works with either search, and is branched from `add-beam-search` because both change `fsimp.mac`.
 
 ## Capabilities
 

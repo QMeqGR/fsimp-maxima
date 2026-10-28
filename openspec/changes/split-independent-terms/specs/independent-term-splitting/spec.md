@@ -6,7 +6,7 @@ Lets fullsimp simplify the parts of a sum or product that share no variables ind
 
 ### Requirement: Independent sum terms are simplified separately
 
-When the top-level operator of an expression is a sum, fullsimp SHALL partition its terms into groups such that no two groups share a variable, and SHALL simplify each group separately. Terms with no variables SHALL form one group. Two terms that share a variable, directly or through other terms, SHALL fall in the same group.
+When the top-level operator of an expression is a sum and its terms that contain variables fall into two or more groups such that no two groups share a variable, fullsimp SHALL simplify each group separately. Two terms that share a variable, directly or through other terms, SHALL fall in the same group. Terms without variables SHALL be simplified together with whichever group, or on their own, gives the cheapest combined result. With fewer than two such groups, fullsimp SHALL simplify the expression as a whole.
 
 #### Scenario: Large polynomial plus a trig identity
 
@@ -23,6 +23,31 @@ When the top-level operator of an expression is a sum, fullsimp SHALL partition 
 - **WHEN** the user evaluates `fullsimp(sin(x)^2 + cos(x)^2 + y - 1)`
 - **THEN** the result SHALL be `y`
 
+#### Scenario: A constant belongs with one group
+
+- **WHEN** the user evaluates `fullsimp(1 - sin(x)^2 + tan(y)^2)`
+- **THEN** the result SHALL be `cos(x)^2 + tan(y)^2`
+
+#### Scenario: Constants divided between groups
+
+- **WHEN** the user evaluates `fullsimp(1 - sin(x)^2 + tan(y)^2 + 1)`
+- **THEN** the result SHALL be `cos(x)^2 + sec(y)^2`
+
+#### Scenario: Shifts that cancel
+
+- **WHEN** the user evaluates `fullsimp(cosh(z)^2 - sin(x)^2)`
+- **THEN** the result SHALL be `sinh(z)^2 + cos(x)^2`
+
+#### Scenario: A group that simplifies to a constant
+
+- **WHEN** the user evaluates `fullsimp(x^2 + 2*x + sin(y)^2 + cos(y)^2)`
+- **THEN** the result SHALL be `(x + 1)^2`
+
+#### Scenario: A large group takes no shift
+
+- **WHEN** the user evaluates `fullsimp(expand((a+b+c+d+u)^10) + sin(x)^2 - 1)`
+- **THEN** the result SHALL be `sin(x)^2 + (a+b+c+d+u)^10 - 1` and the polynomial group SHALL be simplified once
+
 #### Scenario: Terms sharing a variable stay together
 
 - **WHEN** the user evaluates `fullsimp(sin(x)^2 + cos(x)^2 + (x^2 - 1)/(x - 1))`
@@ -36,6 +61,25 @@ When the top-level operator of an expression is a product, fullsimp SHALL partit
 
 - **WHEN** the user evaluates `fullsimp(((1 + cos(t))/sin(t)) * ((exp(y) - exp(-y))/(exp(y) + exp(-y))))`
 - **THEN** the result SHALL be `cot(t/2)*tanh(y)`
+
+#### Scenario: A constant factor belongs with one group
+
+- **WHEN** the user evaluates `fullsimp(2*tan(x)/(1 + tan(x)^2) * (exp(y) - exp(-y))/(exp(y) + exp(-y)))`
+- **THEN** the result SHALL be `sin(2*x)*tanh(y)`
+
+### Requirement: Groups that merge are merged
+
+After combining the group results, fullsimp SHALL try the routines that merge terms across groups (`logcontract` and `rootscontract`, when they are in the routine list for the input) on the combination, subject to the equivalence check.
+
+#### Scenario: Logarithms of independent variables
+
+- **WHEN** the user has evaluated `assume(a > 0, b > 0)` and then evaluates `fullsimp(log(a) + log(b) + sin(t)^2 + cos(t)^2)`
+- **THEN** the result SHALL be `log(a*b) + 1`
+
+#### Scenario: Roots of independent variables
+
+- **WHEN** the user has evaluated `assume(x > 0, y > 0)` and then evaluates `fullsimp(sqrt(x)*sqrt(y))`
+- **THEN** the result SHALL be `sqrt(x*y)`
 
 ### Requirement: Splitting applies within groups
 
