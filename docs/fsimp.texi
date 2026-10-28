@@ -104,6 +104,12 @@ routine produces from the input. The original single-candidate sweep is
 still available. See @code{fs_search}, @code{fs_beam_width} and
 @code{fs_max_rounds}.
 
+When the expression is a sum or product of parts that share no
+variables, such as a polynomial in @code{a} and @code{b} plus a
+trigonometric expression in @code{x}, each part is simplified on its
+own, so a routine suited to one part never runs on the others. See
+@code{fs_split}.
+
 Some core routines, such as @code{radcan}, @code{rootscontract} and
 @code{logcontract}, rewrite expressions in ways that are only valid for
 part of the complex plane. For example @code{radcan} turns
@@ -117,8 +123,8 @@ reals and all four complex quadrants, and they respect the
 @code{x+1}. See @code{fs_check}.
 
 The rtest files @code{rtest_fsimp1.mac} to @code{rtest_fsimp3.mac},
-@code{rtest_fsimp_check.mac} and @code{rtest_fsimp_beam.mac} test the
-package. @code{tests/run_rtests.sh}
+@code{rtest_fsimp_check.mac}, @code{rtest_fsimp_beam.mac} and
+@code{rtest_fsimp_split.mac} test the package. @code{tests/run_rtests.sh}
 runs each file in its own Maxima process and reports pass counts and
 timings. @code{tests/fsimp_audit_rtests.mac} checks that every expected result
 in the rtest files equals its input numerically, independently of
@@ -138,8 +144,11 @@ the fsimp function operations, list selection of simplification routines, etc.
 With @code{fsdebug} at 1 or more, each candidate rejected by the
 equivalence check is printed together with the routine that produced it,
 and a note is printed when the assumptions leave too few test points, in
-which case the check samples without them. At 2 or more, the beam search
-also prints the pool sizes after each round and why it stopped.
+which case the check samples without them. fullsimp also reports when
+it splits an expression into independent groups (see @code{fs_split}),
+and when the combined result fails the check, in which case it
+simplifies the expression whole. At 2 or more, the beam search also
+prints the pool sizes after each round and why it stopped.
 @end defvr
 
 @anchor{fs_check}
@@ -209,6 +218,36 @@ Default value: @code{4}
 The largest number of rounds the beam search runs. It usually stops
 earlier, as soon as a round adds no new candidate to the pool. The value
 must be a positive integer.
+@end defvr
+
+@anchor{fs_split}
+@defvr {Variable} fs_split
+Default value: @code{true}
+
+When @code{fs_split} is @code{true} and the expression is a sum or
+product whose terms fall into two or more groups that share no
+variables, @code{fullsimp} simplifies each group on its own and combines
+the results. Terms with no variables, such as a constant @code{1}, may
+go with any group: each group either keeps its own result or is
+simplified again with all the constants added, and a group containing a
+trigonometric or hyperbolic function also tries @code{+1} and @code{-1},
+with the rest of the constant added back. The cheapest combination is
+kept. So @code{1 - sin(x)^2 + tan(y)^2 + 1} gives
+@code{cos(x)^2 + sec(y)^2}, and @code{cosh(z)^2 - sin(x)^2} gives
+@code{sinh(z)^2 + cos(x)^2}. A group that simplifies to a constant joins
+the constants. Afterwards @code{logcontract} and @code{rootscontract} are
+tried on the combination, which merges forms like @code{log(a) + log(b)}
+across groups.
+
+Splitting keeps large independent parts from slowing each other down:
+@code{fullsimp(expand((a+b+c+d+u)^10) + sin(x)^2 + cos(x)^2)} returns
+@code{(a+b+c+d+u)^10 + 1} in well under a second. For the same reason a
+group larger than 1000 (in the size @code{fullsimp} uses) takes no
+shift. The price is that factorisations across groups are not
+found: @code{(x+1)^2 - y^2} is not turned into @code{(x+1-y)*(x+1+y)}.
+
+Setting @code{fs_split} to @code{false} simplifies the expression as a
+whole.
 @end defvr
 
 @anchor{fullsimp}

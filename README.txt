@@ -69,6 +69,11 @@ round adds nothing new.  The result is never larger than what any single
 routine produces from the input.  The original single-candidate sweep is
 still available.  See ‘fs_search’, ‘fs_beam_width’ and ‘fs_max_rounds’.
 
+   When the expression is a sum or product of parts that share no
+variables, such as a polynomial in ‘a’ and ‘b’ plus a trigonometric
+expression in ‘x’, each part is simplified on its own, so a routine
+suited to one part never runs on the others.  See ‘fs_split’.
+
    Some core routines, such as ‘radcan’, ‘rootscontract’ and
 ‘logcontract’, rewrite expressions in ways that are only valid for part
 of the complex plane.  For example ‘radcan’ turns ‘sqrt(x^2+2*x+1)’ into
@@ -81,11 +86,11 @@ features: after ‘assume(x > -1)’, ‘fullsimp(sqrt(x^2+2*x+1))’ returns
 ‘x+1’.  See ‘fs_check’.
 
    The rtest files ‘rtest_fsimp1.mac’ to ‘rtest_fsimp3.mac’,
-‘rtest_fsimp_check.mac’ and ‘rtest_fsimp_beam.mac’ test the package.
-‘tests/run_rtests.sh’ runs each file in its own Maxima process and
-reports pass counts and timings.  ‘tests/fsimp_audit_rtests.mac’ checks
-that every expected result in the rtest files equals its input
-numerically, independently of ‘fs_check’.
+‘rtest_fsimp_check.mac’, ‘rtest_fsimp_beam.mac’ and
+‘rtest_fsimp_split.mac’ test the package.  ‘tests/run_rtests.sh’ runs
+each file in its own Maxima process and reports pass counts and timings.
+‘tests/fsimp_audit_rtests.mac’ checks that every expected result in the
+rtest files equals its input numerically, independently of ‘fs_check’.
 ‘tests/fsimp_compare_single.mac’ checks that ‘fullsimp’ is never
 costlier than any single routine applied to the input, and
 ‘tests/fsimp_check_collisions.mac’ that binding a variable outside
@@ -103,8 +108,11 @@ costlier than any single routine applied to the input, and
      rejected by the equivalence check is printed together with the
      routine that produced it, and a note is printed when the
      assumptions leave too few test points, in which case the check
-     samples without them.  At 2 or more, the beam search also prints
-     the pool sizes after each round and why it stopped.
+     samples without them.  fullsimp also reports when it splits an
+     expression into independent groups (see ‘fs_split’), and when the
+     combined result fails the check, in which case it simplifies the
+     expression whole.  At 2 or more, the beam search also prints the
+     pool sizes after each round and why it stopped.
 
  -- Variable: fs_check
      Default value: ‘true’
@@ -168,6 +176,33 @@ costlier than any single routine applied to the input, and
      The largest number of rounds the beam search runs.  It usually
      stops earlier, as soon as a round adds no new candidate to the
      pool.  The value must be a positive integer.
+
+ -- Variable: fs_split
+     Default value: ‘true’
+
+     When ‘fs_split’ is ‘true’ and the expression is a sum or product
+     whose terms fall into two or more groups that share no variables,
+     ‘fullsimp’ simplifies each group on its own and combines the
+     results.  Terms with no variables, such as a constant ‘1’, may go
+     with any group: each group either keeps its own result or is
+     simplified again with all the constants added, and a group
+     containing a trigonometric or hyperbolic function also tries ‘+1’
+     and ‘-1’, with the rest of the constant added back.  The cheapest
+     combination is kept.  So ‘1 - sin(x)^2 + tan(y)^2 + 1’ gives
+     ‘cos(x)^2 + sec(y)^2’, and ‘cosh(z)^2 - sin(x)^2’ gives ‘sinh(z)^2
+     + cos(x)^2’.  A group that simplifies to a constant joins the
+     constants.  Afterwards ‘logcontract’ and ‘rootscontract’ are tried
+     on the combination, which merges forms like ‘log(a) + log(b)’
+     across groups.
+
+     Splitting keeps large independent parts from slowing each other
+     down: ‘fullsimp(expand((a+b+c+d+u)^10) + sin(x)^2 + cos(x)^2)’
+     returns ‘(a+b+c+d+u)^10 + 1’ in well under a second.  For the same
+     reason a group larger than 1000 (in the size ‘fullsimp’ uses) takes
+     no shift.  The price is that factorisations across groups are not
+     found: ‘(x+1)^2 - y^2’ is not turned into ‘(x+1-y)*(x+1+y)’.
+
+     Setting ‘fs_split’ to ‘false’ simplifies the expression as a whole.
 
  -- Function: fullsimp (expr,[simp1,simp2,...])
      The ‘fullsimp’ function takes an input expression ‘expr’ and
@@ -244,18 +279,20 @@ Appendix A Function and Variable index
 * Menu:
 
 * fullsimp:                              Functions and Variables for fsimp.
-                                                              (line 171)
+                                                              (line 206)
 
 * Menu:
 
 * fs_beam_width:                         Functions and Variables for fsimp.
-                                                              (line 152)
+                                                              (line 160)
 * fs_check:                              Functions and Variables for fsimp.
-                                                              (line 108)
+                                                              (line 116)
 * fs_max_rounds:                         Functions and Variables for fsimp.
-                                                              (line 164)
+                                                              (line 172)
 * fs_search:                             Functions and Variables for fsimp.
-                                                              (line 143)
+                                                              (line 151)
+* fs_split:                              Functions and Variables for fsimp.
+                                                              (line 179)
 * fsdebug:                               Functions and Variables for fsimp.
-                                                              (line  98)
+                                                              (line 103)
 

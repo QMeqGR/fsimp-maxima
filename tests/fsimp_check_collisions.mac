@@ -24,7 +24,9 @@ load("fsimp")$
   sizefactor, loopmax, smallestExpr, exprSize, origExprSize, simpdExpr,
   simpdExprSize, simpdSafe, smallestSafe, a, b, z, k, u, v, w, f, g, h, as,
   vars, doms, rows, pts, vals, gc, cv, ok, fl, x0, sorted, ncheap, best, up,
-  saved, kc, lo, hi, kind, lows, highs, fv, vs, th, m, row, o, bs, side]$
+  saved, kc, lo, hi, kind, lows, highs, fv, vs, th, m, row, o, bs, side,
+  oa, gc, groups, consts, simp1, parts, options, combined, merge, hit, term,
+  terms, tr, j, keep, shifts, cache, bestcost, ch, ks, ls]$
 %t_bases : [(cos(t)+1)/((%i*sin(qq)-cos(qq))*sin(t)),
             sqrt(qq^2 + 2*qq + 1) + sin(t)^2 + cos(t)^2,
             log(qq) + log(t) - log(qq*t) + tan(qq) + cot(qq),

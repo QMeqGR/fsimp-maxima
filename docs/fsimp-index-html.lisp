@@ -6,6 +6,9 @@
        '(("fsdebug"
           "fsimp_html/index.html"
           "index-fsdebug")
+         ("fs_split"
+          "fsimp_html/index.html"
+          "index-fs_005fsplit")
          ("fs_search"
           "fsimp_html/index.html"
           "index-fs_005fsearch")

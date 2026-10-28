@@ -25,11 +25,14 @@ fullsimp( tan(x) + cot(x) );
 
 /* Variable names of any length. The beam computes cost inline, so it must
    discount names the way fscost does, or a long name would change its
-   result. Both searches agree on the doc example written in alpha. */
-(fs_search : 'sweep,
+   result. Both searches agree on the doc example written in alpha. The two
+   factors share no variables, so fs_split : false keeps the expression
+   whole for the search. */
+(fs_split : false, fs_search : 'sweep,
  r : fullsimp((cos(t)+1)/((%i*sin(alpha)-cos(alpha))*sin(t))),
  fs_search : 'beam,
- [r, fullsimp((cos(t)+1)/((%i*sin(alpha)-cos(alpha))*sin(t)))]);
+ r : [r, fullsimp((cos(t)+1)/((%i*sin(alpha)-cos(alpha))*sin(t)))],
+ fs_split : true, r);
 [-(%e^(%i*alpha)*cot(t/2)), -(%e^(%i*alpha)*cot(t/2))];
 
 /* Width one */

@@ -15,7 +15,7 @@ Builds on add-equivalence-check (branch add-equivalence-check).
   verified single transform. The sweep is costlier on the atan case (2 transforms beat it).
 - One rtest result changed: `cot(x)*sin(2*x)` now gives `cos(2*x) + 1` instead of `2*cos(x)^2`.
   Both cost 18; the beam finds the first one first. Recorded in rtest_fsimp3.mac with a comment.
-- With `fs_search : 'sweep`, all original rtest expectations pass unchanged (15, 112, 68, 23).
+- With `fs_search : 'sweep`, all original rtest expectations pass unchanged (15, 112, 68, 24).
 - All rtest files pass in beam mode: 12, 112, 68, 12 (new rtest_fsimp_beam.mac), 24.
 - Audit: 183 cases, 0 non-identities.
 

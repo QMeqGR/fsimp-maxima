@@ -1,0 +1,101 @@
+(kill(all), load(fsimp), 0);
+0;
+
+/* Tests for splitting independent terms: one block per scenario in
+   openspec/changes/split-independent-terms/specs/independent-term-splitting/spec.md. */
+
+/* Independent sum terms are simplified separately */
+
+fullsimp( expand((a + b + c + d + u)^10) + sin(x)^2 + cos(x)^2 );
+(a + b + c + d + u)^10 + 1;
+
+fullsimp( (1 + cos(t))/sin(t) + (exp(y) - exp(-y))/(exp(y) + exp(-y)) );
+cot(t/2) + tanh(y);
+
+fullsimp( sin(x)^2 + cos(x)^2 + y - 1 );
+y;
+
+fullsimp( sin(x)^2 + cos(x)^2 + (x^2 - 1)/(x - 1) );
+x + 2;
+
+/* Independent product factors are simplified separately */
+
+fullsimp( ((1 + cos(t))/sin(t)) * ((exp(y) - exp(-y))/(exp(y) + exp(-y))) );
+cot(t/2)*tanh(y);
+
+/* Splitting applies within groups */
+
+fullsimp( z * ((1 + cos(t))/sin(t) + (exp(y) - exp(-y))/(exp(y) + exp(-y))) );
+z*(cot(t/2) + tanh(y));
+
+/* Combined results stay correct */
+
+block([e : sqrt(x^2 + 2*x + 1) + sin(y)^2 + cos(y)^2, r, d],
+  r : fullsimp(e),
+  d : subst([x = -3.0, y = 0.7], e - r),
+  is(abs(float(d)) < 1e-10));
+true;
+
+/* Splitting can be disabled: no split is reported in the debug output */
+
+(load("stringproc"),
+ s1 : make_string_output_stream(), s2 : make_string_output_stream(),
+ with_stdout(s1, (fsdebug : 1, fullsimp(sin(x)^2 + cos(x)^2 + y), fsdebug : 0)),
+ fs_split : false,
+ with_stdout(s2, (fsdebug : 1, fullsimp(sin(x)^2 + cos(x)^2 + y), fsdebug : 0)),
+ fs_split : true,
+ [is(ssearch("splitting into", get_output_stream_string(s1)) # false),
+  is(ssearch("splitting into", get_output_stream_string(s2)) # false)]);
+[true, false];
+
+/* Constants go with the group they simplify with */
+fullsimp( 1 - sin(x)^2 + tan(y)^2 );
+cos(x)^2 + tan(y)^2;
+
+fullsimp( 2*tan(x)/(1 + tan(x)^2) * (exp(y) - exp(-y))/(exp(y) + exp(-y)) );
+sin(2*x)*tanh(y);
+
+/* Constants divided between groups: each group takes 1 */
+fullsimp( 1 - sin(x)^2 + tan(y)^2 + 1 );
+sec(y)^2 + cos(x)^2;
+
+/* Shifts that cancel: Maxima drops the -1 + 1 before fullsimp sees it */
+fullsimp( 2*cos(u)^2 - 1 + 1 - sin(x)^2 );
+cos(x)^2 + cos(2*u);
+
+fullsimp( cosh(z)^2 - sin(x)^2 );
+sinh(z)^2 + cos(x)^2;
+
+/* A group that simplifies to a constant joins the constants */
+fullsimp( x^2 + 2*x + sin(y)^2 + cos(y)^2 );
+(x + 1)^2;
+
+fullsimp( (cos(2*x) + sin(x)^2 - cos(x)^2) * sin(y) );
+0;
+
+/* A large group takes no shift: the expanded polynomial is simplified
+   once, not again with the -1 added (which takes several seconds) */
+fullsimp( expand((a+b+c+d+u)^10) + sin(x)^2 - 1 );
+sin(x)^2 + (a+b+c+d+u)^10 - 1;
+
+/* Disjoint groups can merge */
+(assume(a > 0, b > 0), r : fullsimp( log(a) + log(b) + sin(t)^2 + cos(t)^2 ), forget(a > 0, b > 0), r);
+log(a*b) + 1;
+
+(assume(x > 0, y > 0), r : fullsimp( sqrt(x)*sqrt(y) ), forget(x > 0, y > 0), r);
+sqrt(x*y);
+
+/* Partition: subscripted variables are variables, 2*%pi is a constant */
+
+fs_var_groups(fs_op_args(c[1]*x + c[2] + 2*%pi + y)[2]);
+[[[c[2]], [c[1]*x], [y]], [2*%pi]];
+
+/* When the combined result fails the whole-input check, fullsimp falls
+   back to the unsplit search. Force the failure by replacing the check,
+   then reload the real one. */
+(load("stringproc"), s : make_string_output_stream(),
+ fs_equivalent(chk, c) := false,
+ with_stdout(s, (fsdebug : 1, fullsimp(sin(x)^2 + cos(x)^2 + y), fsdebug : 0)),
+ load("fscheck.mac"),
+ is(ssearch("failed the equivalence check", get_output_stream_string(s)) # false));
+true;
