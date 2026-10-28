@@ -34,7 +34,7 @@ The beam search SHALL reach a result of equal or lower cost than the sweep searc
 #### Scenario: Regression suite
 
 - **WHEN** the rtest files `rtest_fsimp1.mac` to `rtest_fsimp3.mac` run with `fs_search : 'beam`
-- **THEN** every case SHALL pass, or produce a result of lower cost that passes the equivalence check, and the test file SHALL record that new result
+- **THEN** every case SHALL pass, or produce a result of equal or lower cost that passes the equivalence check, and the test file SHALL record that new result
 
 #### Scenario: Multi-step trig result
 
@@ -68,3 +68,17 @@ When several candidates have equal cost, fullsimp SHALL pick between them by a f
 
 - **WHEN** the user evaluates `fullsimp(sin(x)^2 + 2*cos(x)^2)` twice with the same options
 - **THEN** both calls SHALL return the same expression
+
+### Requirement: Variables of the input are never evaluated
+
+fullsimp SHALL NOT evaluate the variables of its input. A variable that shares its name with a local variable of any function fullsimp calls, or that has a value in the caller, SHALL give the same result as when it has no value.
+
+#### Scenario: Names of search locals
+
+- **WHEN** the user evaluates `block([p : 12345], fullsimp('((cos(t)+1)/((%i*sin(p)-cos(p))*sin(t)))))`
+- **THEN** the result SHALL be `-(%e^(%i*p)*cot(t/2))`, as it is with `p` unbound
+
+#### Scenario: Both search modes
+
+- **WHEN** the user runs the same test with `fs_search : 'sweep` and variables named `r`, `i` or `e`
+- **THEN** each result SHALL equal the result with the variable unbound

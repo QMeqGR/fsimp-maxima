@@ -27,4 +27,4 @@ None. `result-verification` requirements stay unchanged.
 - `fsimp.mac`: `fsimp` gets a new beam implementation alongside the existing sweep, selected by `fs_search`. `fsimpall` passes the transform list as before.
 - Run time: up to `fs_beam_width` times more transform calls per round in the worst case. The seen-set and early stopping cut this in practice. The pull request reports full test-suite timings for both modes.
 - `docs/fsimp.texi`, `README.txt`: document the three new options and update the algorithm description.
-- New test file for the scenarios in the spec. Existing rtest files must pass unchanged.
+- New test file for the scenarios in the spec, plus `tests/fsimp_compare_single.mac` and `tests/fsimp_check_collisions.mac`. Existing rtest files must pass, with one equal-cost result recorded.

@@ -44,6 +44,12 @@ Key each candidate by `string(expr)`. `fscost` already computes this string for 
 
 Among equal-cost candidates, prefer the earlier one in discovery order: round number first, then pool position, then the transform's position in the list. Discovery order depends only on the input and the options, so results stay reproducible.
 
+### Variables in the input must not be evaluated
+
+The beam search adds new local variables, `p` among them, so it needs the same guarantee as the sweep: no routine evaluates the user's expression, or a variable named like a local takes that local's value. fstrigsimp did evaluate its input a second time, and the beam's `p` exposed it on the doc example `(cos(t)+1)/((%i*sin(p)-cos(p))*sin(t))`. That fix touches only fstrigsimp and affects the sweep as well, so it landed on its own before `add-equivalence-check` (branch `fix-fstrigsimp-eval`). This change adds `tests/fsimp_check_collisions.mac`, which binds every local and parameter name on fullsimp's call path outside fullsimp and checks the results do not change in either search.
+
+*Alternative:* run the search on a copy whose variables are renamed to fresh uninterned symbols, with facts copied over in a temporary context. Tried and rejected. It guards against any routine that evaluates its input, but it changed results: Maxima's term order and fsimp's cost both depend on variable names, so the renamed copy took different search paths. Fixing the one routine that evaluated its input keeps results unchanged, and `tests/fsimp_check_collisions.mac` checks that no other routine does.
+
 ### Keeping the sweep
 
 Move the current loop unchanged into `fs_sweep(expr, r)`, and add `fs_beam(expr, r)`. `fsimp` dispatches on `fs_search`, after checking that `fs_beam_width` and `fs_max_rounds` are positive integers and `fs_search` is `'beam` or `'sweep`. Keeping the old code path makes A/B comparison straightforward for review and gives users a fallback.
@@ -51,5 +57,5 @@ Move the current loop unchanged into `fs_sweep(expr, r)`, and add `fs_beam(expr,
 ## Risks / Trade-offs
 
 - [Up to 8× more transform calls on large expressions] → The seen set and early stopping reduce this. Expensive transforms on large candidates are the main cost, so the pull request reports suite timings for both modes. If the default costs too much, lower the default `fs_beam_width` to 3 rather than drop the anchor.
-- [A different but equally cheap result changes test expectations] → Deterministic tie-breaking keeps results stable. Any rtest case whose result changes gets reviewed: if the new result is cheaper and verified, the test records it. Otherwise that counts as a bug in the beam.
+- [A different but equally cheap result changes test expectations] → Deterministic tie-breaking keeps results stable. Any rtest case whose result changes gets reviewed: if the new result costs no more and is verified, the test records it with a comment. A costlier result counts as a bug in the beam.
 - [Hash table helper is Lisp code] → `make-hash-table :test #'equal` is standard Common Lisp and works on every Lisp Maxima supports.
