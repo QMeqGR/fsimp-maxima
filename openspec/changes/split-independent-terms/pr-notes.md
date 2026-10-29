@@ -21,7 +21,7 @@ Branched from add-beam-search, since both change fsimp.mac; works with either se
 - 60 random sums and products of rtest inputs with disjoint variables: splitting gives a cheaper
   result than `fs_split : false` in 6 and a costlier one in none. Time 2.5 s split, 1.5 s unsplit.
 - All existing rtest expectations pass unchanged with splitting on, and with `fs_split : false`.
-- New rtest_fsimp_split.mac: 21/21. All six rtest files: 15, 112, 68, 12, 23, 21.
+- New rtest_fsimp_split.mac: 21/21. All six rtest files: 15, 112, 68, 12, 24, 21.
 - tests/fsimp_check_collisions.mac (split-path locals added): 832 runs, 0 differences.
 - tests/fsimp_compare_single.mac: 196 inputs, beam never costlier than a verified single transform.
 - Audit: 196 cases, 0 non-identities.
