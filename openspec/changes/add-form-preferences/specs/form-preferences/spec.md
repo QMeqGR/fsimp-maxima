@@ -81,7 +81,7 @@ The preference `single_fraction` SHALL count each sum that has a term with a den
 
 ### Requirement: Factored and expanded
 
-The preference `factored` SHALL count each sum containing a variable that `factor` rewrites as a product, power or negation, outside function arguments. The preference `expanded` SHALL count each product with a sum factor and each sum raised to an integer power above 1, outside function arguments. While `factored` is active, fullsimp SHALL NOT split sums into independent groups.
+The preference `factored` SHALL count each sum containing a variable that `factor` rewrites as a product, power or negation, outside function arguments. The preference `expanded` SHALL count each product with a sum factor and each sum raised to an integer power above 1, outside function arguments. While `factored` is active, fullsimp SHALL NOT split sums into independent groups, and while `expanded` is active, it SHALL NOT split products.
 
 #### Scenario: Factored polynomial
 
@@ -97,6 +97,11 @@ The preference `factored` SHALL count each sum containing a variable that `facto
 
 - **WHEN** the user evaluates `fullsimp((x + 1)^2)` with `fs_prefer : ['expanded]`
 - **THEN** the result SHALL be `x^2 + 2*x + 1`
+
+#### Scenario: Expansion across independent factors
+
+- **WHEN** the user evaluates `fullsimp((x + 1)*(y + 1))` with `fs_prefer : ['expanded]`
+- **THEN** the result SHALL be `x*y + y + x + 1`
 
 ### Requirement: Function families
 
@@ -134,6 +139,11 @@ fullsimp SHALL signal an error naming `fs_prefer` when it is not a list, when an
 #### Scenario: Empty avoid list
 
 - **WHEN** the user evaluates `fullsimp(x)` with `fs_prefer : [['avoid]]`
+- **THEN** fullsimp SHALL signal an error whose message contains `fs_prefer`
+
+#### Scenario: Not a list, on an expression that splits
+
+- **WHEN** the user evaluates `fullsimp(a + sin(x))` with `fs_prefer : 'shortest`
 - **THEN** fullsimp SHALL signal an error whose message contains `fs_prefer`
 
 ### Requirement: Search guarantees use rank

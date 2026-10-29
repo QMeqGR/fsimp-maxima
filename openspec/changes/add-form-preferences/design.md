@@ -30,7 +30,7 @@ A prototype on a scratch copy (beam patched to call `fscost`, preferences emulat
 
 ### Uphill moves use size only
 
-The best candidate, the beam's cheapest slots and the sweep's acceptance of a step that is no worse all use rank. The uphill rules use the `fscost` element only. The sweep takes an uphill step when the size ratio is under `sizefactor`, whatever the violation counts. The beam's uphill slot takes the best-ranked candidate not already in the pool whose size is at most `1 + sizefactor` times the size of the best candidate. Reaching a preferred form can pass through forms with more violations: factoring can need an expansion first, and rationalising produces a longer intermediate.
+The best candidate, the beam's cheapest slots and the sweep's acceptance of a step that is no worse all use rank. The uphill rules use the `fscost` element only. The sweep takes an uphill step when the size ratio is under `sizefactor`, whatever the violation counts. The beam's uphill slot takes the best-ranked candidate not already in the pool that ranks below the best candidate and whose size is at most `1 + sizefactor` times the best candidate's size. Ranking below the best is the rank form of the old "costlier than the best" condition, so the slot fills exactly as before when `fs_prefer` is `[]`. Reaching a preferred form can pass through forms with more violations: factoring can need an expansion first, and rationalising produces a longer intermediate.
 
 *Alternative:* only allow uphill moves that do not add violations. Rejected, because it blocks those paths. The guarantees still hold, since the returned result is always the best-ranked candidate seen.
 
@@ -61,6 +61,7 @@ The constant placement and the final guard in `fs_split_simp` compare ranks. Vio
 
 - `single_fraction`: the merge pass also tries `xthru`, so `1/x + 1/y` (groups `x` and `y`) becomes `(y+x)/(x*y)`. Without it the prototype returned `1/y+1/x`.
 - `factored`: sums are not split. A factorisation across groups (`(x+1)^2 - y^2` becomes `-((y-x-1)*(y+x+1))`) only exists for the whole sum. Products are still split. Splitting the sum returned `(x+1)^2-y^2` in the prototype.
+- `expanded`: products are not split, for the same reason: `(x+1)*(y+1)` only expands as a whole. A review found that splitting returned it unchanged. Sums are still split.
 
 ### Validation
 

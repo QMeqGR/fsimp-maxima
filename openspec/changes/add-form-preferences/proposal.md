@@ -17,7 +17,7 @@ fullsimp always returns the smallest expression it finds, but users often want a
   - `trigonometric`: no `%e` raised to a power containing `%i`.
 - `rational_denominator` adds a routine, `fs_rationalize` (`ratsimp` with `algebraic : true`), to the routine list while it is active. The other preferences use routines already in the list.
 - Opposed pairs (`factored` with `expanded`, `exponential` with `trigonometric`) and unknown entries are errors that name `fs_prefer`.
-- With `single_fraction` active, the merge pass after a split also tries `xthru`. With `factored` active, sums are not split, so factorisations across groups stay reachable.
+- With `single_fraction` active, the merge pass after a split also tries `xthru`. With `factored` active, sums are not split, and with `expanded` active, products are not split, so factorisations and expansions across groups stay reachable.
 - The beam search computes size through `fscost`, as the sweep does, so a user definition of `fscost` applies to both searches.
 - New function `fs_rank(expr)` returns the ranking vector, for checking why one result beat another.
 
@@ -35,8 +35,9 @@ None in `openspec/specs/`. The earlier changes are not archived yet, so the rank
 
 ## Impact
 
-- `fsimp.mac`: `fs_rank`, the violation counts, `fs_prefer` validation, rank comparisons in the sweep, the beam search and the split step, and the extra routine and merge-pass entries.
+- New `fsprefer.mac`, loaded by `fsimp.mac`: `fs_prefer`, its validation, the violation counts, `fs_rank` and `fs_rationalize`.
+- `fsimp.mac`: rank comparisons in the sweep, the beam search and the split step, and the extra routine and merge-pass entries.
 - `fscheck.mac`: `fs_rationalize` joins `fs_safe_transforms`.
 - Run time with `fs_prefer : []`: unchanged, since no violation count runs. With preferences, each candidate pays for one scan per preference. `factored` also calls `factor` on each sum outside function arguments.
 - `docs/fsimp.texi`, `README.txt`: document `fs_prefer`, each preference and `fs_rank`.
-- New test file for the scenarios in the spec. Existing rtest files must pass unchanged.
+- New test file for the scenarios in the spec. Existing rtest files must pass unchanged. `tests/fsimp_check_collisions.mac` also runs with preferences active.
