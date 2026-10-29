@@ -49,13 +49,35 @@ expressions using the core simplification routines for expressions
 invovling trigonometric, logarithmic, exponential, polynomial and
 other functions.
 
-To use the package, place the files in your maxima search path and
+To install the package with mxpm, run @code{mxpm install --path} on a
+copy of the repository. Without mxpm, copy the repository into a
+directory under @code{~/.maxima}, which Maxima 5.47 and later search,
+or add its directory to @code{file_search_maxima} and
+@code{file_search_lisp}, or load it by its full path. Then
 
-load("fsimp.mac");
+@code{load("fullsimp");}
 
-To simplify an expression @code{expr} call
+loads the package. @code{load("fsimp")} also works. To simplify an
+expression @code{expr} call
 
 @code{fullsimp(expr);}
+
+The functions, variables and rules the package defines all start with
+@code{fs}, apart from @code{fullsimp} itself, so loading it leaves the
+names a user works with alone. An input with @code{gamma} or a factorial
+loads Maxima's @code{gamma_simp} share package, which defines functions
+of its own in the session; excluding its routines, as in
+@code{fullsimp(e, gamma_simp, factorial_simp)}, keeps it from loading.
+
+Loading the package also undoes one change that Maxima itself makes.
+Maxima's @code{trigsimp}, which @code{fullsimp} uses, declares @code{a} as
+a pattern variable with @code{matchdeclare} when it first loads, so that
+@code{a} matches any expression in rules the user later defines with
+@code{defrule}, @code{tellsimp} or @code{let}. Loading @code{fsimp.mac}
+loads @code{trigsimp} at once and removes that declaration, unless
+@code{a} already had one. The rules of @code{trigsimp} are compiled by
+then, so @code{trigsimp} works as before. A user who wants @code{a} as a
+pattern variable can declare it again with @code{matchdeclare}.
 
 The algorithm begins by searching through an expression for e.g. trig,
 log, exp, etc. and choosing a set of core simplification

@@ -64,13 +64,35 @@ expressions using the core simplification routines for expressions
 invovling trigonometric, logarithmic, exponential, polynomial and
 other functions.
 </p>
-<p>To use the package, place the files in your maxima search path and
+<p>To install the package with mxpm, run <code class="code">mxpm install --path</code> on a
+copy of the repository. Without mxpm, copy the repository into a
+directory under <code class="code">~/.maxima</code>, which Maxima 5.47 and later search,
+or add its directory to <code class="code">file_search_maxima</code> and
+<code class="code">file_search_lisp</code>, or load it by its full path. Then
 </p>
-<p>load(&quot;fsimp.mac&quot;);
+<p><code class="code">load(&quot;fullsimp&quot;);</code>
 </p>
-<p>To simplify an expression <code class="code">expr</code> call
+<p>loads the package. <code class="code">load(&quot;fsimp&quot;)</code> also works. To simplify an
+expression <code class="code">expr</code> call
 </p>
 <p><code class="code">fullsimp(expr);</code>
+</p>
+<p>The functions, variables and rules the package defines all start with
+<code class="code">fs</code>, apart from <code class="code">fullsimp</code> itself, so loading it leaves the
+names a user works with alone. An input with <code class="code">gamma</code> or a factorial
+loads Maxima&rsquo;s <code class="code">gamma_simp</code> share package, which defines functions
+of its own in the session; excluding its routines, as in
+<code class="code">fullsimp(e, gamma_simp, factorial_simp)</code>, keeps it from loading.
+</p>
+<p>Loading the package also undoes one change that Maxima itself makes.
+Maxima&rsquo;s <code class="code">trigsimp</code>, which <code class="code">fullsimp</code> uses, declares <code class="code">a</code> as
+a pattern variable with <code class="code">matchdeclare</code> when it first loads, so that
+<code class="code">a</code> matches any expression in rules the user later defines with
+<code class="code">defrule</code>, <code class="code">tellsimp</code> or <code class="code">let</code>. Loading <code class="code">fsimp.mac</code>
+loads <code class="code">trigsimp</code> at once and removes that declaration, unless
+<code class="code">a</code> already had one. The rules of <code class="code">trigsimp</code> are compiled by
+then, so <code class="code">trigsimp</code> works as before. A user who wants <code class="code">a</code> as a
+pattern variable can declare it again with <code class="code">matchdeclare</code>.
 </p>
 <p>The algorithm begins by searching through an expression for e.g. trig,
 log, exp, etc. and choosing a set of core simplification

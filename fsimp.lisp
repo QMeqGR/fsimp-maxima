@@ -1,4 +1,6 @@
-(defmfun $conssize (e) (conssize e))
+;; Maxima's own size measure of the internal list, under an fs_ name so the
+;; package adds no generic name to the user's session.
+(defmfun $fs_conssize (e) (conssize e))
 
 ;; Characters that names chosen by the user add to string(e) beyond one
 ;; per occurrence. These are variables, as listofvars returns them

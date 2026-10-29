@@ -4,9 +4,9 @@
 (in-package :cl-info)
 (let ((html-index
        '(("fsdebug"
-          "/home/ehm/math/Maxima/share/ehm/fsimp-maxima/docs/fsimp_html/index.html"
+          "fsimp_html/index.html"
           "index-fsdebug")
          ("fullsimp"
-          "/home/ehm/math/Maxima/share/ehm/fsimp-maxima/docs/fsimp_html/index.html"
+          "fsimp_html/index.html"
           "index-fullsimp"))))
-  (load-html-index html-index))
+  (let ((dir (maxima::maxima-load-pathname-directory))) (dolist (entry html-index) (destructuring-bind (item path id) entry (setf (gethash item *html-index*) (cons (namestring (merge-pathnames path dir)) id))))))

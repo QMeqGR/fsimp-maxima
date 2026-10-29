@@ -19,10 +19,24 @@
 
 fsimp_ver:"v0.0.4"$
 
-load("fsimp.lisp")$
-load("fsimp-index.lisp")$
-load("fsimp-index-html.lisp")$
-load("fstrgsimp.mac")$
+/* Companion files load from the directory of this file, so the package
+   works wherever it is installed, with or without docs/ on the search
+   path, and never picks up files from another copy. Without a load path
+   (for example when this file is batched) they load by name. */
+block([fs_dir : if stringp(load_pathname) then pathname_directory(load_pathname) else false],
+  for fs_f in [["fsimp.lisp", "fsimp.lisp"],
+               ["docs/fsimp-index.lisp", "fsimp-index.lisp"],
+               ["docs/fsimp-index-html.lisp", "fsimp-index-html.lisp"],
+               ["fstrgsimp.mac", "fstrgsimp.mac"]] do
+    load(if fs_dir = false then fs_f[2] else sconcat(fs_dir, fs_f[1])))$
+
+/* Maxima's trigsimp, which fullsimp uses, declares a as a pattern variable
+   when it first loads, so a would match anything in the user's own rules.
+   Load it now and remove that declaration, unless a already had one. Its
+   rules are compiled by then, so trigsimp is unaffected. */
+block([fs_had_a : member(matchdeclare, properties(a))],
+  trigsimp(0),
+  if not fs_had_a and member(matchdeclare, properties(a)) then remove(a, matchdeclare))$
 
 /*
 Adapted from David Scherfgen's dssimp.mac code.
@@ -103,7 +117,7 @@ fsimpall(expr,[remlist]) :=
    if listp (expr) or setp (expr) then
    map(lambda([x],fsimpall(x,[remlist])),expr)
    else if matrixp (expr) then matrixmap(lambda([x],fsimpall(x,[remlist])),expr)
-   else block([
+   else block([ratprint : false,
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,csc,cot,
              cosh,sinh,acosh,asinh,tanh,atanh,csch,coth],
    trigflag:0,expflag:0,
@@ -122,9 +136,11 @@ fsimpall(expr,[remlist]) :=
   if trigflag=1 then simplist: append(triglist,simplist),
   if expflag=1 then simplist: append(explist,simplist),
   if freeof(log,expr)=false then simplist:append(loglist,simplist),
-  if freeof(gamma,expr)=false then (load("gamma_simp.mac"),
+  /* gamma_simp is a share package that defines further functions in the
+     session, so load it only once, and not when its routines are excluded */
+  if freeof(gamma,expr)=false and not member(gamma_simp, remlist) then (fs_load_gamma_simp(),
     simplist:append([gamma_simp],simplist)),
-  if freeof(factorial,expr)=false then (load("gamma_simp.mac"),
+  if freeof(factorial,expr)=false and not member(factorial_simp, remlist) then (fs_load_gamma_simp(),
     simplist:append([factorial_simp],simplist)),
 
   /* user may remove any simplifications by hand */
@@ -151,11 +167,13 @@ declare(fullsimp,evfun);
 /*         Utility functions               */
 /*******************************************/
 
+fs_load_gamma_simp() := if not member(gamma_simp, map(op, functions)) then load("gamma_simp")$
+
 fssl(expr):=slength(string(expr)); /* string length of expr */
 /* new cost function. Variable names and the names of functions Maxima
    has no simplifier for count as one character each, so the cost, and with
    it the result, does not depend on what the user called them. */
-fssize(expr):=conssize(expr)+fssl(expr)-fs_name_excess(expr);
+fssize(expr):=fs_conssize(expr)+fssl(expr)-fs_name_excess(expr);
 fscost(expr):=fssize(expr)$
 
 /* Remove list1 contents from list2 */

@@ -1,0 +1,4 @@
+# Written into the package directory by mxpm install --editable
+.mxpm.json
+# Failure reports from rtest runs (mxpm test, batch with test)
+*.ERR

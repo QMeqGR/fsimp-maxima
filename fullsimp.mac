@@ -1,0 +1,4 @@
+/* load("fullsimp") loads the package. Its main file is fsimp.mac, which
+   load("fsimp") also loads. */
+load(if stringp(load_pathname) then sconcat(pathname_directory(load_pathname), "fsimp.mac")
+     else "fsimp.mac")$

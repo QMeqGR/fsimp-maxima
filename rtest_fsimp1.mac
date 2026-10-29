@@ -81,3 +81,23 @@ true;
 
 is(fscost(myfunction(x)^2 + 'other(y)) = fscost(f(x)^2 + 'g(y)));
 true;
+
+/* Loading the package leaves the user's names alone: its pattern
+   variables do not turn a, b or z into wildcards in the user's rules */
+(defrule(fs_rtest_rule, a + x, 0), apply1(b + x, fs_rtest_rule));
+b + x;
+
+/* fullsimp does not print rat's float messages: ratprint is off while the
+   routines run, as a custom routine sees */
+block([old_ratprint : ratprint, r],
+  ratprint : true,
+  fs_custom_simp : [lambda([q], (seen_ratprint : ratprint, q))],
+  fullsimp(0.5*x + 0.25*x^2), fs_custom_simp : [],
+  r : [seen_ratprint, ratprint], ratprint : old_ratprint, r);
+[false, true];
+
+/* Excluding the gamma_simp routines keeps the share package unloaded */
+(fullsimp(gamma(n + 1)/gamma(n), gamma_simp, factorial_simp),
+ member(gamma_simp, map(op, functions)));
+false;
+

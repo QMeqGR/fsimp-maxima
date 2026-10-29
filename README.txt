@@ -16,13 +16,35 @@ expressions using the core simplification routines for expressions
 invovling trigonometric, logarithmic, exponential, polynomial and other
 functions.
 
-   To use the package, place the files in your maxima search path and
+   To install the package with mxpm, run ‘mxpm install --path’ on a copy
+of the repository.  Without mxpm, copy the repository into a directory
+under ‘~/.maxima’, which Maxima 5.47 and later search, or add its
+directory to ‘file_search_maxima’ and ‘file_search_lisp’, or load it by
+its full path.  Then
 
-   load("fsimp.mac");
+   ‘load("fullsimp");’
 
-   To simplify an expression ‘expr’ call
+   loads the package.  ‘load("fsimp")’ also works.  To simplify an
+expression ‘expr’ call
 
    ‘fullsimp(expr);’
+
+   The functions, variables and rules the package defines all start with
+‘fs’, apart from ‘fullsimp’ itself, so loading it leaves the names a
+user works with alone.  An input with ‘gamma’ or a factorial loads
+Maxima's ‘gamma_simp’ share package, which defines functions of its own
+in the session; excluding its routines, as in ‘fullsimp(e, gamma_simp,
+factorial_simp)’, keeps it from loading.
+
+   Loading the package also undoes one change that Maxima itself makes.
+Maxima's ‘trigsimp’, which ‘fullsimp’ uses, declares ‘a’ as a pattern
+variable with ‘matchdeclare’ when it first loads, so that ‘a’ matches
+any expression in rules the user later defines with ‘defrule’,
+‘tellsimp’ or ‘let’.  Loading ‘fsimp.mac’ loads ‘trigsimp’ at once and
+removes that declaration, unless ‘a’ already had one.  The rules of
+‘trigsimp’ are compiled by then, so ‘trigsimp’ works as before.  A user
+who wants ‘a’ as a pattern variable can declare it again with
+‘matchdeclare’.
 
    The algorithm begins by searching through an expression for e.g.
 trig, log, exp, etc.  and choosing a set of core simplification
@@ -110,10 +132,10 @@ Appendix A Function and Variable index
 * Menu:
 
 * fullsimp:                              Functions and Variables for fsimp.
-                                                               (line 49)
+                                                               (line 71)
 
 * Menu:
 
 * fsdebug:                               Functions and Variables for fsimp.
-                                                               (line 44)
+                                                               (line 66)
 
