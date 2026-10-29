@@ -32,7 +32,7 @@ define_variable(fs_check, true, boolean)$
 fs_safe_transforms : ['ratsimp, 'fullratsimp, 'factor, 'expand, 'combine,
                       'xthru, 'multthru, 'resimplify, 'trigsimp, 'trigreduce,
                       'trigexpand, 'trigrat, 'minfactorial, 'exponentialize,
-                      'demoivre, 'fstrigsimp]$
+                      'demoivre, 'fstrigsimp, 'fs_rationalize]$
 
 fs_check_npoints : 48$    /* test points per call: 3 passes over 16 kind rows */
 fs_check_minpoints : 3$   /* fewer usable points than this: input unverifiable */

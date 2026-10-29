@@ -26,7 +26,7 @@ quit()\$" 2>&1)
   end=$(date +%s)
   summary=$(printf '%s\n' "$out" | grep -E 'tests passed|problems? failed|No unexpected errors' | tr '\n' ' ')
   printf '%s: %s(%ss)\n' "$f" "$summary" "$((end - start))"
-  printf '%s\n' "$out" | grep -q 'failed' && status=1
+  printf '%s\n' "$out" | grep -qE 'problems? failed' && status=1
 done
 rm -f "$repo"/rtest_fsimp*.ERR
 exit $status

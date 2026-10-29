@@ -74,6 +74,11 @@ variables, such as a polynomial in ‘a’ and ‘b’ plus a trigonometric
 expression in ‘x’, each part is simplified on its own, so a routine
 suited to one part never runs on the others.  See ‘fs_split’.
 
+   The smallest form is not always the one wanted.  The option
+‘fs_prefer’ lists form preferences, such as a denominator without
+radicals or a factored polynomial, that count for more than size.  See
+‘fs_prefer’ and ‘fs_rank’.
+
    Some core routines, such as ‘radcan’, ‘rootscontract’ and
 ‘logcontract’, rewrite expressions in ways that are only valid for part
 of the complex plane.  For example ‘radcan’ turns ‘sqrt(x^2+2*x+1)’ into
@@ -86,15 +91,15 @@ features: after ‘assume(x > -1)’, ‘fullsimp(sqrt(x^2+2*x+1))’ returns
 ‘x+1’.  See ‘fs_check’.
 
    The rtest files ‘rtest_fsimp1.mac’ to ‘rtest_fsimp3.mac’,
-‘rtest_fsimp_check.mac’, ‘rtest_fsimp_beam.mac’ and
-‘rtest_fsimp_split.mac’ test the package.  ‘tests/run_rtests.sh’ runs
-each file in its own Maxima process and reports pass counts and timings.
-‘tests/fsimp_audit_rtests.mac’ checks that every expected result in the
-rtest files equals its input numerically, independently of ‘fs_check’.
-‘tests/fsimp_compare_single.mac’ checks that ‘fullsimp’ is never
-costlier than any single routine applied to the input, and
+‘rtest_fsimp_check.mac’, ‘rtest_fsimp_beam.mac’, ‘rtest_fsimp_split.mac’
+and ‘rtest_fsimp_prefer.mac’ test the package.  ‘tests/run_rtests.sh’
+runs each file in its own Maxima process and reports pass counts and
+timings.  ‘tests/fsimp_audit_rtests.mac’ checks that every expected
+result in the rtest files equals its input numerically, independently of
+‘fs_check’.  ‘tests/fsimp_compare_single.mac’ checks that ‘fullsimp’ is
+never costlier than any single routine applied to the input, and
 ‘tests/fsimp_check_collisions.mac’ that binding a variable outside
-‘fullsimp’ never changes its result.
+‘fullsimp’ never changes its result, with and without form preferences.
 
    E. Majzoub.
 
@@ -111,8 +116,9 @@ costlier than any single routine applied to the input, and
      samples without them.  fullsimp also reports when it splits an
      expression into independent groups (see ‘fs_split’), and when the
      combined result fails the check, in which case it simplifies the
-     expression whole.  At 2 or more, the beam search also prints the
-     pool sizes after each round and why it stopped.
+     expression whole, and it prints the rank (see ‘fs_rank’) of the
+     input and of the result.  At 2 or more, the beam search also prints
+     the pool sizes after each round and why it stopped.
 
  -- Variable: fs_check
      Default value: ‘true’
@@ -204,6 +210,78 @@ costlier than any single routine applied to the input, and
 
      Setting ‘fs_split’ to ‘false’ simplifies the expression as a whole.
 
+ -- Variable: fs_prefer
+     Default value: ‘[]’
+
+     A list of form preferences.  Each preference counts its violations
+     in an expression, and ‘fullsimp’ ranks candidates by those counts,
+     in list order, before size: a candidate with fewer violations of an
+     earlier preference wins however large it is, and size only decides
+     between candidates with equal counts.  With ‘[]’, the default,
+     results are the smallest forms as before.  Every candidate still
+     has to pass the equivalence check (see ‘fs_check’).
+
+     The preferences are:
+
+     ‘rational_denominator’
+          No radical in any denominator.  While active, ‘fullsimp’ also
+          tries the routine ‘fs_rationalize’, which is ‘ratsimp’ with
+          ‘algebraic : true’ and rationalises denominators.
+          ‘1/(1+sqrt(2))’ becomes ‘sqrt(2)-1’.  A single radical such as
+          ‘1/sqrt(3)’ stays, because Maxima itself turns ‘sqrt(3)/3’
+          back into ‘1/sqrt(3)’.
+     ‘single_fraction’
+          No sum with a term that has a denominator, and no fraction
+          inside a denominator.  ‘x + 1/x’ becomes ‘(x^2+1)/x’.  Numeric
+          coefficients such as the ‘1/2’ in ‘x/2’ do not count.
+     ‘factored’
+          No sum that ‘factor’ rewrites as a product or power.  While
+          active, sums are not split into independent groups (see
+          ‘fs_split’), so ‘(x+1)^2 - y^2’ becomes ‘-((y-x-1)*(y+x+1))’.
+     ‘expanded’
+          No product with a sum as a factor, and no sum raised to an
+          integer power above 1.  While active, products are not split
+          into independent groups, so ‘(x+1)*(y+1)’ becomes ‘x*y+y+x+1’.
+     ‘[avoid, f1, f2, ...]’
+          No call to any of the named functions.
+     ‘sin_cos’
+          No ‘tan’, ‘cot’, ‘sec’ or ‘csc’, the same as ‘[avoid, tan,
+          cot, sec, csc]’.  ‘tan(x) + cot(x)’ becomes ‘2/sin(2*x)’
+          instead of ‘2*csc(2*x)’.
+     ‘exponential’
+          No trigonometric or hyperbolic function.
+     ‘trigonometric’
+          No ‘%e’ raised to a power containing ‘%i’.
+
+     ‘single_fraction’, ‘factored’ and ‘expanded’ look at the arithmetic
+     shape of the expression and do not count inside function arguments.
+     The other preferences count everywhere.  ‘factored’ and ‘expanded’
+     cannot be used together, and neither can ‘exponential’ and
+     ‘trigonometric’.  An unknown entry is an error.
+
+     The result of ‘fullsimp’ is never ranked worse than its input, and
+     never ranked worse than any single routine applied to the input.
+     With preferences this means a result can be larger than the input.
+     A preference no routine can reach has no effect, and excluding the
+     routine a preference needs (by naming it in the call to ‘fullsimp’,
+     as in ‘fullsimp(e, fs_rationalize)’) leaves the preference
+     unreachable.
+
+     Setting ‘fsdebug’ to 1 prints the rank of the input and of the
+     result.
+
+ -- Function: fs_rank (expr)
+     Returns the list of violation counts of ‘expr’ for each entry of
+     ‘fs_prefer’, in order, followed by its size ‘fscost(expr)’.
+     ‘fullsimp’ compares candidates by this list.  With ‘fs_prefer :
+     [sin_cos, rational_denominator]’, ‘fs_rank(cot(x)/sqrt(2))’ returns
+     ‘[1, 1, fscost(cot(x)/sqrt(2))]’.
+
+     ‘fscost’ computes the size as the Lisp ‘conssize’ plus the string
+     length, counting each variable and each undefined function name as
+     one character.  Redefining ‘fscost’ changes the size used by both
+     searches.
+
  -- Function: fullsimp (expr,[simp1,simp2,...])
      The ‘fullsimp’ function takes an input expression ‘expr’ and
      attempts to find a simpler form using the builtin simplification
@@ -264,6 +342,23 @@ out of the result, unless assumptions make them valid.
      (%i4) fullsimp(sqrt(x^2+2*x+1));
      (%o4)                               x + 1
 
+   Form preferences take priority over size.
+
+     (%i1) load("fsimp.mac")$
+     (%i2) fullsimp(x/(sqrt(x)+1));
+                                          x
+     (%o2)                           -----------
+                                     sqrt(x) + 1
+     (%i3) fs_prefer : [rational_denominator];
+     (%o3)                       [rational_denominator]
+     (%i4) fullsimp(x/(sqrt(x)+1));
+                                        3/2
+                                       x    - x
+     (%o4)                             --------
+                                        x - 1
+     (%i5) fs_prefer : [];
+     (%o5)                                 []
+
    If you wish to exclude particular simplification routines, add them
 to the arguments of fullsimp as shown below.
 
@@ -278,21 +373,25 @@ Appendix A Function and Variable index
 
 * Menu:
 
+* fs_rank:                               Functions and Variables for fsimp.
+                                                              (line 272)
 * fullsimp:                              Functions and Variables for fsimp.
-                                                              (line 206)
+                                                              (line 284)
 
 * Menu:
 
 * fs_beam_width:                         Functions and Variables for fsimp.
-                                                              (line 160)
+                                                              (line 166)
 * fs_check:                              Functions and Variables for fsimp.
-                                                              (line 116)
+                                                              (line 122)
 * fs_max_rounds:                         Functions and Variables for fsimp.
-                                                              (line 172)
+                                                              (line 178)
+* fs_prefer:                             Functions and Variables for fsimp.
+                                                              (line 212)
 * fs_search:                             Functions and Variables for fsimp.
-                                                              (line 151)
+                                                              (line 157)
 * fs_split:                              Functions and Variables for fsimp.
-                                                              (line 179)
+                                                              (line 185)
 * fsdebug:                               Functions and Variables for fsimp.
-                                                              (line 103)
+                                                              (line 108)
 

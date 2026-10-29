@@ -16,8 +16,9 @@ load("fsimp")$
    bound to a sentinel value in a frame outside fullsimp. If anything in the
    search evaluates v, it sees either that sentinel or a local variable of
    the same name, and the result differs. The names include every local
-   variable and parameter of the functions on fullsimp's call path. Test
-   locals use a %t_ prefix. */
+   variable and parameter of the functions on fullsimp's call path. Each
+   search runs with no preferences and with several, so the preference
+   counts in fsprefer.mac are covered too. Test locals use a %t_ prefix. */
 %t_names : [p, q, r, i, L, e, t1, expr, chk, tmp, tmpsz, Li, fsrulesN, remlist,
   simplist, trigfuns, trigflag, expflag, triglist, loglist, explist, c, s, n,
   anchor, cands, pool, expanded, seen, round, grown, cost, safe, res,
@@ -26,15 +27,18 @@ load("fsimp")$
   vars, doms, rows, pts, vals, gc, cv, ok, fl, x0, sorted, ncheap, best, up,
   saved, kc, lo, hi, kind, lows, highs, fv, vs, th, m, row, o, bs, side,
   oa, gc, groups, consts, simp1, parts, options, combined, merge, hit, term,
-  terms, tr, j, keep, shifts, cache, bestcost, ch, ks, ls]$
+  terms, tr, j, keep, shifts, cache, bestcost, ch, ks, ls, exprRank, smallestRank,
+  simpdRank, names, pair, funs, pred, intofuns, done, t, bestrank]$
 %t_bases : [(cos(t)+1)/((%i*sin(qq)-cos(qq))*sin(t)),
             sqrt(qq^2 + 2*qq + 1) + sin(t)^2 + cos(t)^2,
             log(qq) + log(t) - log(qq*t) + tan(qq) + cot(qq),
             gamma(qq + 1)/gamma(qq) + (qq^2 - 1)/(qq - 1)]$
 %t_bad : 0$
 %t_runs : 0$
+for %t_pr in [[], ['rational_denominator, 'single_fraction, 'factored, 'sin_cos,
+               'trigonometric]] do
 for %t_m in ['sweep, 'beam] do (
-  fs_search : %t_m,
+  fs_search : %t_m, fs_prefer : %t_pr,
   for %t_v in %t_names do
     for %t_b in %t_bases do block([%t_e, %t_plain, %t_bound],
       %t_e : subst(qq = %t_v, %t_b),
@@ -44,6 +48,7 @@ for %t_m in ['sweep, 'beam] do (
       %t_runs : %t_runs + 1,
       if not is(%t_plain = %t_bound) then (
         %t_bad : %t_bad + 1,
-        print("EVALUATED", %t_m, %t_v, "plain", %t_plain, "bound", %t_bound))))$
+        print("EVALUATED", %t_m, %t_pr, %t_v, "plain", %t_plain, "bound", %t_bound))))$
 fs_search : 'beam$
+fs_prefer : []$
 print("collision test:", %t_bad, "differences over", %t_runs, "runs")$

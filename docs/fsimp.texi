@@ -110,6 +110,11 @@ trigonometric expression in @code{x}, each part is simplified on its
 own, so a routine suited to one part never runs on the others. See
 @code{fs_split}.
 
+The smallest form is not always the one wanted. The option
+@code{fs_prefer} lists form preferences, such as a denominator without
+radicals or a factored polynomial, that count for more than size. See
+@code{fs_prefer} and @code{fs_rank}.
+
 Some core routines, such as @code{radcan}, @code{rootscontract} and
 @code{logcontract}, rewrite expressions in ways that are only valid for
 part of the complex plane. For example @code{radcan} turns
@@ -123,15 +128,17 @@ reals and all four complex quadrants, and they respect the
 @code{x+1}. See @code{fs_check}.
 
 The rtest files @code{rtest_fsimp1.mac} to @code{rtest_fsimp3.mac},
-@code{rtest_fsimp_check.mac}, @code{rtest_fsimp_beam.mac} and
-@code{rtest_fsimp_split.mac} test the package. @code{tests/run_rtests.sh}
+@code{rtest_fsimp_check.mac}, @code{rtest_fsimp_beam.mac},
+@code{rtest_fsimp_split.mac} and @code{rtest_fsimp_prefer.mac} test the
+package. @code{tests/run_rtests.sh}
 runs each file in its own Maxima process and reports pass counts and
 timings. @code{tests/fsimp_audit_rtests.mac} checks that every expected result
 in the rtest files equals its input numerically, independently of
 @code{fs_check}. @code{tests/fsimp_compare_single.mac} checks that
 @code{fullsimp} is never costlier than any single routine applied to the
 input, and @code{tests/fsimp_check_collisions.mac} that binding a variable
-outside @code{fullsimp} never changes its result.
+outside @code{fullsimp} never changes its result, with and without form
+preferences.
 
 E. Majzoub.
 
@@ -147,8 +154,9 @@ and a note is printed when the assumptions leave too few test points, in
 which case the check samples without them. fullsimp also reports when
 it splits an expression into independent groups (see @code{fs_split}),
 and when the combined result fails the check, in which case it
-simplifies the expression whole. At 2 or more, the beam search also
-prints the pool sizes after each round and why it stopped.
+simplifies the expression whole, and it prints the rank (see
+@code{fs_rank}) of the input and of the result. At 2 or more, the beam
+search also prints the pool sizes after each round and why it stopped.
 @end defvr
 
 @anchor{fs_check}
@@ -250,6 +258,84 @@ Setting @code{fs_split} to @code{false} simplifies the expression as a
 whole.
 @end defvr
 
+@anchor{fs_prefer}
+@defvr {Variable} fs_prefer
+Default value: @code{[]}
+
+A list of form preferences. Each preference counts its violations in an
+expression, and @code{fullsimp} ranks candidates by those counts, in
+list order, before size: a candidate with fewer violations of an earlier
+preference wins however large it is, and size only decides between
+candidates with equal counts. With @code{[]}, the default, results are
+the smallest forms as before. Every candidate still has to pass the
+equivalence check (see @code{fs_check}).
+
+The preferences are:
+
+@table @code
+@item rational_denominator
+No radical in any denominator. While active, @code{fullsimp} also tries
+the routine @code{fs_rationalize}, which is @code{ratsimp} with
+@code{algebraic : true} and rationalises denominators. @code{1/(1+sqrt(2))} becomes @code{sqrt(2)-1}. A single
+radical such as @code{1/sqrt(3)} stays, because Maxima itself turns
+@code{sqrt(3)/3} back into @code{1/sqrt(3)}.
+@item single_fraction
+No sum with a term that has a denominator, and no fraction inside a
+denominator. @code{x + 1/x} becomes @code{(x^2+1)/x}. Numeric
+coefficients such as the @code{1/2} in @code{x/2} do not count.
+@item factored
+No sum that @code{factor} rewrites as a product or power. While active,
+sums are not split into independent groups (see @code{fs_split}), so
+@code{(x+1)^2 - y^2} becomes @code{-((y-x-1)*(y+x+1))}.
+@item expanded
+No product with a sum as a factor, and no sum raised to an integer power
+above 1. While active, products are not split into independent groups,
+so @code{(x+1)*(y+1)} becomes @code{x*y+y+x+1}.
+@item [avoid, f1, f2, ...]
+No call to any of the named functions.
+@item sin_cos
+No @code{tan}, @code{cot}, @code{sec} or @code{csc}, the same as
+@code{[avoid, tan, cot, sec, csc]}. @code{tan(x) + cot(x)} becomes
+@code{2/sin(2*x)} instead of @code{2*csc(2*x)}.
+@item exponential
+No trigonometric or hyperbolic function.
+@item trigonometric
+No @code{%e} raised to a power containing @code{%i}.
+@end table
+
+@code{single_fraction}, @code{factored} and @code{expanded} look at the
+arithmetic shape of the expression and do not count inside function
+arguments. The other preferences count everywhere. @code{factored} and
+@code{expanded} cannot be used together, and neither can
+@code{exponential} and @code{trigonometric}. An unknown entry is an
+error.
+
+The result of @code{fullsimp} is never ranked worse than its input, and
+never ranked worse than any single routine applied to the input. With
+preferences this means a result can be larger than the input. A
+preference no routine can reach has no effect, and excluding the
+routine a preference needs (by naming it in the call to
+@code{fullsimp}, as in @code{fullsimp(e, fs_rationalize)}) leaves the
+preference unreachable.
+
+Setting @code{fsdebug} to 1 prints the rank of the input and of the
+result.
+@end defvr
+
+@anchor{fs_rank}
+@deffn {Function} fs_rank (@code{expr})
+Returns the list of violation counts of @code{expr} for each entry of
+@code{fs_prefer}, in order, followed by its size @code{fscost(expr)}.
+@code{fullsimp} compares candidates by this list. With
+@code{fs_prefer : [sin_cos, rational_denominator]},
+@code{fs_rank(cot(x)/sqrt(2))} returns @code{[1, 1, fscost(cot(x)/sqrt(2))]}.
+
+@code{fscost} computes the size as the Lisp @code{conssize} plus the
+string length, counting each variable and each undefined function name
+as one character. Redefining @code{fscost} changes the size used by both
+searches.
+@end deffn
+
 @anchor{fullsimp}
 @deffn {Function} fullsimp (@code{expr},[simp1,simp2,...])
 The @code{fullsimp} function takes an input expression @code{expr} and
@@ -317,6 +403,27 @@ The equivalence check keeps rewrites that are not valid for all
 (%o3)                              [x > - 1]
 (%i4) fullsimp(sqrt(x^2+2*x+1));
 (%o4)                               x + 1
+@end group
+@end example
+
+Form preferences take priority over size.
+
+@example
+@group
+(%i1) load("fsimp.mac")$
+(%i2) fullsimp(x/(sqrt(x)+1));
+                                     x
+(%o2)                           -----------
+                                sqrt(x) + 1
+(%i3) fs_prefer : [rational_denominator];
+(%o3)                       [rational_denominator]
+(%i4) fullsimp(x/(sqrt(x)+1));
+                                   3/2
+                                  x    - x
+(%o4)                             --------
+                                   x - 1
+(%i5) fs_prefer : [];
+(%o5)                                 []
 @end group
 @end example
 

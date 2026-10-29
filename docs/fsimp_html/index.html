@@ -125,6 +125,11 @@ trigonometric expression in <code class="code">x</code>, each part is simplified
 own, so a routine suited to one part never runs on the others. See
 <code class="code">fs_split</code>.
 </p>
+<p>The smallest form is not always the one wanted. The option
+<code class="code">fs_prefer</code> lists form preferences, such as a denominator without
+radicals or a factored polynomial, that count for more than size. See
+<code class="code">fs_prefer</code> and <code class="code">fs_rank</code>.
+</p>
 <p>Some core routines, such as <code class="code">radcan</code>, <code class="code">rootscontract</code> and
 <code class="code">logcontract</code>, rewrite expressions in ways that are only valid for
 part of the complex plane. For example <code class="code">radcan</code> turns
@@ -138,15 +143,17 @@ reals and all four complex quadrants, and they respect the
 <code class="code">x+1</code>. See <code class="code">fs_check</code>.
 </p>
 <p>The rtest files <code class="code">rtest_fsimp1.mac</code> to <code class="code">rtest_fsimp3.mac</code>,
-<code class="code">rtest_fsimp_check.mac</code>, <code class="code">rtest_fsimp_beam.mac</code> and
-<code class="code">rtest_fsimp_split.mac</code> test the package. <code class="code">tests/run_rtests.sh</code>
+<code class="code">rtest_fsimp_check.mac</code>, <code class="code">rtest_fsimp_beam.mac</code>,
+<code class="code">rtest_fsimp_split.mac</code> and <code class="code">rtest_fsimp_prefer.mac</code> test the
+package. <code class="code">tests/run_rtests.sh</code>
 runs each file in its own Maxima process and reports pass counts and
 timings. <code class="code">tests/fsimp_audit_rtests.mac</code> checks that every expected result
 in the rtest files equals its input numerically, independently of
 <code class="code">fs_check</code>. <code class="code">tests/fsimp_compare_single.mac</code> checks that
 <code class="code">fullsimp</code> is never costlier than any single routine applied to the
 input, and <code class="code">tests/fsimp_check_collisions.mac</code> that binding a variable
-outside <code class="code">fullsimp</code> never changes its result.
+outside <code class="code">fullsimp</code> never changes its result, with and without form
+preferences.
 </p>
 <p>E. Majzoub.
 </p>
@@ -167,8 +174,9 @@ and a note is printed when the assumptions leave too few test points, in
 which case the check samples without them. fullsimp also reports when
 it splits an expression into independent groups (see <code class="code">fs_split</code>),
 and when the combined result fails the check, in which case it
-simplifies the expression whole. At 2 or more, the beam search also
-prints the pool sizes after each round and why it stopped.
+simplifies the expression whole, and it prints the rank (see
+<code class="code">fs_rank</code>) of the input and of the result. At 2 or more, the beam
+search also prints the pool sizes after each round and why it stopped.
 </p></dd></dl>
 
 <a class="anchor" id="fs_005fcheck"></a><dl class="first-defvr def-block">
@@ -270,6 +278,92 @@ found: <code class="code">(x+1)^2 - y^2</code> is not turned into <code class="c
 whole.
 </p></dd></dl>
 
+<a class="anchor" id="fs_005fprefer"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fprefer"><span class="category-def">Variable: </span><span><strong class="def-name">fs_prefer</strong><a class="copiable-link" href="#index-fs_005fprefer"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">[]</code>
+</p>
+<p>A list of form preferences. Each preference counts its violations in an
+expression, and <code class="code">fullsimp</code> ranks candidates by those counts, in
+list order, before size: a candidate with fewer violations of an earlier
+preference wins however large it is, and size only decides between
+candidates with equal counts. With <code class="code">[]</code>, the default, results are
+the smallest forms as before. Every candidate still has to pass the
+equivalence check (see <code class="code">fs_check</code>).
+</p>
+<p>The preferences are:
+</p>
+<dl class="table">
+<dt><code class="code">rational_denominator</code></dt>
+<dd><p>No radical in any denominator. While active, <code class="code">fullsimp</code> also tries
+the routine <code class="code">fs_rationalize</code>, which is <code class="code">ratsimp</code> with
+<code class="code">algebraic : true</code> and rationalises denominators. <code class="code">1/(1+sqrt(2))</code> becomes <code class="code">sqrt(2)-1</code>. A single
+radical such as <code class="code">1/sqrt(3)</code> stays, because Maxima itself turns
+<code class="code">sqrt(3)/3</code> back into <code class="code">1/sqrt(3)</code>.
+</p></dd>
+<dt><code class="code">single_fraction</code></dt>
+<dd><p>No sum with a term that has a denominator, and no fraction inside a
+denominator. <code class="code">x + 1/x</code> becomes <code class="code">(x^2+1)/x</code>. Numeric
+coefficients such as the <code class="code">1/2</code> in <code class="code">x/2</code> do not count.
+</p></dd>
+<dt><code class="code">factored</code></dt>
+<dd><p>No sum that <code class="code">factor</code> rewrites as a product or power. While active,
+sums are not split into independent groups (see <code class="code">fs_split</code>), so
+<code class="code">(x+1)^2 - y^2</code> becomes <code class="code">-((y-x-1)*(y+x+1))</code>.
+</p></dd>
+<dt><code class="code">expanded</code></dt>
+<dd><p>No product with a sum as a factor, and no sum raised to an integer power
+above 1. While active, products are not split into independent groups,
+so <code class="code">(x+1)*(y+1)</code> becomes <code class="code">x*y+y+x+1</code>.
+</p></dd>
+<dt><code class="code">[avoid, f1, f2, ...]</code></dt>
+<dd><p>No call to any of the named functions.
+</p></dd>
+<dt><code class="code">sin_cos</code></dt>
+<dd><p>No <code class="code">tan</code>, <code class="code">cot</code>, <code class="code">sec</code> or <code class="code">csc</code>, the same as
+<code class="code">[avoid, tan, cot, sec, csc]</code>. <code class="code">tan(x) + cot(x)</code> becomes
+<code class="code">2/sin(2*x)</code> instead of <code class="code">2*csc(2*x)</code>.
+</p></dd>
+<dt><code class="code">exponential</code></dt>
+<dd><p>No trigonometric or hyperbolic function.
+</p></dd>
+<dt><code class="code">trigonometric</code></dt>
+<dd><p>No <code class="code">%e</code> raised to a power containing <code class="code">%i</code>.
+</p></dd>
+</dl>
+
+<p><code class="code">single_fraction</code>, <code class="code">factored</code> and <code class="code">expanded</code> look at the
+arithmetic shape of the expression and do not count inside function
+arguments. The other preferences count everywhere. <code class="code">factored</code> and
+<code class="code">expanded</code> cannot be used together, and neither can
+<code class="code">exponential</code> and <code class="code">trigonometric</code>. An unknown entry is an
+error.
+</p>
+<p>The result of <code class="code">fullsimp</code> is never ranked worse than its input, and
+never ranked worse than any single routine applied to the input. With
+preferences this means a result can be larger than the input. A
+preference no routine can reach has no effect, and excluding the
+routine a preference needs (by naming it in the call to
+<code class="code">fullsimp</code>, as in <code class="code">fullsimp(e, fs_rationalize)</code>) leaves the
+preference unreachable.
+</p>
+<p>Setting <code class="code">fsdebug</code> to 1 prints the rank of the input and of the
+result.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005frank"></a><dl class="first-deffn def-block">
+<dt class="deffn def-line" id="index-fs_005frank"><span class="category-def">Function: </span><span><strong class="def-name">fs_rank</strong> <var class="def-var-arguments">(<code class="code">expr</code>)</var><a class="copiable-link" href="#index-fs_005frank"> &para;</a></span></dt>
+<dd><p>Returns the list of violation counts of <code class="code">expr</code> for each entry of
+<code class="code">fs_prefer</code>, in order, followed by its size <code class="code">fscost(expr)</code>.
+<code class="code">fullsimp</code> compares candidates by this list. With
+<code class="code">fs_prefer : [sin_cos, rational_denominator]</code>,
+<code class="code">fs_rank(cot(x)/sqrt(2))</code> returns <code class="code">[1, 1, fscost(cot(x)/sqrt(2))]</code>.
+</p>
+<p><code class="code">fscost</code> computes the size as the Lisp <code class="code">conssize</code> plus the
+string length, counting each variable and each undefined function name
+as one character. Redefining <code class="code">fscost</code> changes the size used by both
+searches.
+</p></dd></dl>
+
 <a class="anchor" id="fullsimp"></a><dl class="first-deffn def-block">
 <dt class="deffn def-line" id="index-fullsimp"><span class="category-def">Function: </span><span><strong class="def-name">fullsimp</strong> <var class="def-var-arguments">(<code class="code">expr</code>,[simp1,simp2,...])</var><a class="copiable-link" href="#index-fullsimp"> &para;</a></span></dt>
 <dd><p>The <code class="code">fullsimp</code> function takes an input expression <code class="code">expr</code> and
@@ -334,6 +428,25 @@ command line as shown in the last example below.
 (%o3)                              [x &gt; - 1]
 (%i4) fullsimp(sqrt(x^2+2*x+1));
 (%o4)                               x + 1
+</pre></div></div>
+
+<p>Form preferences take priority over size.
+</p>
+<div class="example">
+<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;)$
+(%i2) fullsimp(x/(sqrt(x)+1));
+                                     x
+(%o2)                           -----------
+                                sqrt(x) + 1
+(%i3) fs_prefer : [rational_denominator];
+(%o3)                       [rational_denominator]
+(%i4) fullsimp(x/(sqrt(x)+1));
+                                   3/2
+                                  x    - x
+(%o4)                             --------
+                                   x - 1
+(%i5) fs_prefer : [];
+(%o5)                                 []
 </pre></div></div>
 
 <p>If you wish to exclude particular simplification routines,

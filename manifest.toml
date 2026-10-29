@@ -12,4 +12,4 @@ maxima = ">= 5.47"
 names = ["Eric Majzoub"]
 
 [test]
-files = ["rtest_fsimp1.mac", "rtest_fsimp2.mac", "rtest_fsimp3.mac", "rtest_fsimp_beam.mac", "rtest_fsimp_check.mac", "rtest_fsimp_split.mac"]
+files = ["rtest_fsimp1.mac", "rtest_fsimp2.mac", "rtest_fsimp3.mac", "rtest_fsimp_beam.mac", "rtest_fsimp_check.mac", "rtest_fsimp_prefer.mac", "rtest_fsimp_split.mac"]

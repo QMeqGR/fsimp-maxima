@@ -23,11 +23,10 @@ fullsimp( tan(x) + cot(x) );
  fs_search : 'beam, r);
 1/(sqrt(1-x)*sqrt(x+1));
 
-/* Variable names of any length. The beam computes cost inline, so it must
-   discount names the way fscost does, or a long name would change its
-   result. Both searches agree on the doc example written in alpha. The two
-   factors share no variables, so fs_split : false keeps the expression
-   whole for the search. */
+/* Variable names of any length. Both searches must count names the way
+   fscost does, or a long name would change the result, so both agree on
+   the doc example written in alpha. The two factors share no variables,
+   so fs_split : false keeps the expression whole for the search. */
 (fs_split : false, fs_search : 'sweep,
  r : fullsimp((cos(t)+1)/((%i*sin(alpha)-cos(alpha))*sin(t))),
  fs_search : 'beam,
