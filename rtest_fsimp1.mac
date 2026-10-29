@@ -68,3 +68,16 @@ fullsimp(-x*(y**2 - 1)*(2*y**2*(x**2 - 1)/(a*(x**2 - y**2)**2) + (x**2 - 1)
 fullsimp(-x - y - (x + y)^(-1)*y^2 + (x + y)^(-1)*x^2);
 -(2*y);
 
+/* The cost counts each variable, and each name of a function Maxima has
+   no simplifier for, as one character, so renaming them leaves every size
+   unchanged. With the full name lengths counted, alpha tipped the sweep's 80%
+   threshold for larger intermediate results, and the doc example came
+   back unchanged. */
+fullsimp((cos(t)+1)/((%i*sin(alpha)-cos(alpha))*sin(t)));
+-(%e^(%i*alpha)*cot(t/2));
+
+is(fscost(sin(alpha)^2/beta + c[123]) = fscost(sin(a)^2/b + c[1]));
+true;
+
+is(fscost(myfunction(x)^2 + 'other(y)) = fscost(f(x)^2 + 'g(y)));
+true;

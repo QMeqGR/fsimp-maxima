@@ -32,7 +32,10 @@ but while it cycles through various core simplification routines
 (several times) it allows the intermediate expression to become slightly
 larger if it ultimately becomes smaller.  The output is always the
 smallest size expression, where the size is computed by the lisp
-‘consize’ function plus the string length of the expression.
+‘conssize’ function plus the string length of the expression, with each
+variable, and each name of a function Maxima has no simplifier for (such
+as an undefined ‘f’), counted as one character.  Renaming variables or
+such functions therefore leaves the size of every expression unchanged.
 
    E. Majzoub.
 
@@ -70,7 +73,8 @@ smallest size expression, where the size is computed by the lisp
 
      In general, ‘fullsimp’ tries to find the smallest equivalent
      expression based on the Common Lisp ‘conssize’ and string size of
-     an expression.
+     an expression, counting each variable and each undefined function
+     name as one character.
 
      The user may manipulate the order of simplifications through use of
      the exclusion option and the custom simplification option.
@@ -106,10 +110,10 @@ Appendix A Function and Variable index
 * Menu:
 
 * fullsimp:                              Functions and Variables for fsimp.
-                                                               (line 46)
+                                                               (line 49)
 
 * Menu:
 
 * fsdebug:                               Functions and Variables for fsimp.
-                                                               (line 41)
+                                                               (line 44)
 

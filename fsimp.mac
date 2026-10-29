@@ -152,7 +152,10 @@ declare(fullsimp,evfun);
 /*******************************************/
 
 fssl(expr):=slength(string(expr)); /* string length of expr */
-fssize(expr):=conssize(expr)+fssl(expr); /* new cost function */
+/* new cost function. Variable names and the names of functions Maxima
+   has no simplifier for count as one character each, so the cost, and with
+   it the result, does not depend on what the user called them. */
+fssize(expr):=conssize(expr)+fssl(expr)-fs_name_excess(expr);
 fscost(expr):=fssize(expr)$
 
 /* Remove list1 contents from list2 */
