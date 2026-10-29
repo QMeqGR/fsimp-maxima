@@ -81,13 +81,19 @@ tr401,tr402,tr403,tr404,tr405]$
 /* This function cycles through the trig rules above and,
 if the substitution reduces the size of the expression,
 takes the substitution.
+
+apply1 evaluates its first argument, so it gets the quoted 'e and
+evaluates that to the expression. Passing the expression itself would
+evaluate it a second time, and any variable in it that shares a name with
+a local variable of a calling function (p, r, i, e, ...) would take that
+local's value.
 */
-fstrigsimp(e):=block([fsrulesN:length(fstrgrule),Li,tmp],
+fstrigsimp(e):=block([fsrulesN:length(fstrgrule),Li,tmp,tmpsz],
     Li:fssize(e),
     if fsdebug>2 then print(e),
     for i: 1 thru fsrulesN do
       ( if fsdebug>1 then print("trying rule ",fstrgrule[i] ),
-        tmp: apply('apply1,[e,fstrgrule[i]]),
+        tmp: apply('apply1,['e,fstrgrule[i]]),
         tmpsz: fssize(tmp),
         if tmpsz<Li then (
           if fsdebug>1 then (print("trgrule: ",fstrgrule[i]),print("tmp= ",tmp)),
