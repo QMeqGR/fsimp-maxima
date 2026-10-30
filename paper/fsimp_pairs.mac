@@ -1,0 +1,67 @@
+/* Random sums and products of pairs of rtest inputs with disjoint
+   variables, simplified with and without splitting (Section 7 of the
+   paper). Run from the repository root after load("fsimp"):
+
+     batchload("paper/fsimp_pairs.mac")$
+*/
+load("stringproc")$ display2d:false$ linel:100000$
+audit_point(mode) := if mode = 'pos then 0.2 + random(1.8)
+  elseif mode = 'neg then -(0.2 + random(1.8))
+  elseif mode = 'mixed then (if evenp(random(2)) then 1 else -1)*(0.2 + random(1.8))
+  else (random(3.4) - 1.7) + %i*(random(2.0) - 1.0)$
+
+/* Numeric value of e at points, evaluated bottom-up so every function gets
+   a number and returns its principal value. */
+audit_value(e, pts) := block([r, errormsg : false],
+  r : errcatch(scanmap(lambda([u], float(rectform(u))), subst(pts, e), bottomup)),
+  if r # [] and numberp(float(cabs(first(r)))) then first(r) else false)$
+
+/* true if e1 and e2 agree at 12 evaluable points, false if any point
+   disagrees, err if no point evaluates. */
+audit_agree(e1, e2, mode) := block([vs : listofvars([e1, e2]), ok : true, pts, v1, v2, good : 0, tries : 0],
+  while good < 12 and tries < 60 do (
+    tries : tries + 1,
+    pts : map(lambda([v], v = audit_point(mode)), vs),
+    v1 : audit_value(e1, pts), v2 : audit_value(e2, pts),
+    if v1 # false and v2 # false then (
+      good : good + 1,
+      if cabs(v1 - v2) > 1e-7 * (1 + cabs(v1)) then ok : false)),
+  if good = 0 then 'err else ok)$
+
+/* The argument of a fullsimp(...) test input, or false for other inputs. */
+br_dir : sconcat(pathname_directory(load_pathname), "../")$
+br_read(path) := block([s : openr(path), line, text : ""],
+  while (line : readline(s)) # false do text : sconcat(text, " ", line),
+  close(s),
+  block([i, j],
+    while (i : ssearch("/*", text)) # false do (
+      j : ssearch("*/", text, 'sequal, i),
+      text : sconcat(substring(text, 1, i), " ", substring(text, j + 2)))),
+  text)$
+br_cases(path) := block([stmts],
+  stmts : sublist(map(lambda([x], strim(" ", x)), split(br_read(path), ";", false)), lambda([x], x # "")),
+  rest(makelist([stmts[2*k - 1], stmts[2*k]], k, 1, floor(length(stmts)/2))))$
+br_arg(s) := block([e : parse_string(s)],
+  if not atom(e) and op(e) = 'fullsimp and length(args(e)) = 1 then first(args(e)) else false)$
+pr_inputs : []$
+for f in ["rtest_fsimp1.mac", "rtest_fsimp2.mac", "rtest_fsimp3.mac"] do
+  for c in br_cases(sconcat(br_dir, f)) do block([inp : br_arg(c[1])],
+    if inp # false and listofvars(inp) # [] and every(symbolp, listofvars(inp)) and fscost(inp) < 400 then pr_inputs : endcons(inp, pr_inputs))$
+print("PAIRS from", length(pr_inputs), "inputs")$
+block([better : 0, worse : 0, same : 0, ts : 0, tu : 0, n : 0, state : make_random_state(false)],
+  set_random_state(make_random_state(7)),
+  for k thru 60 do block([a, b, e, r1, r0, t0, t1, t2],
+    a : pr_inputs[random(length(pr_inputs)) + 1],
+    b : pr_inputs[random(length(pr_inputs)) + 1],
+    b : subst(map(lambda([v], v = concat(v, 'q)), listofvars(b)), b),
+    e : if evenp(k) then a + b else a * b,
+    n : n + 1,
+    t0 : elapsed_real_time(), r1 : errcatch(fullsimp(e)), t1 : elapsed_real_time(),
+    r0 : errcatch(block([fs_split : false], fullsimp(e))), t2 : elapsed_real_time(),
+    ts : ts + (t1 - t0), tu : tu + (t2 - t1),
+    if r1 = [] or r0 = [] then print("ERR", string(e))
+    elseif fscost(r1[1]) < fscost(r0[1]) then (better : better + 1, print("SPLITBETTER", fscost(r1[1]), fscost(r0[1]), string(e), "|", string(r1[1]), "|", string(r0[1])))
+    elseif fscost(r1[1]) > fscost(r0[1]) then (worse : worse + 1, print("SPLITWORSE", fscost(r1[1]), fscost(r0[1]), string(e), "|", string(r1[1]), "|", string(r0[1])))
+    else same : same + 1),
+  set_random_state(state),
+  print("PAIRS", n, "cases: split better", better, ", worse", worse, ", same", same, "; time split", ts, "unsplit", tu))$

@@ -15,64 +15,64 @@
 
 */
 
-matchdeclare(a,true)$
+matchdeclare(fs_pa,true)$
 /* half angle formulae */
-matchdeclare(b,lambda([x],freeof(cos(a),sin(a),x)))$
-defrule(tr001, b*(1-cos(a))/2 , b*sin(a/2)^2 )$
-defrule(tr002, b*(1+cos(a))/2 , b*cos(a/2)^2 )$
-defrule(tr003, b*(1-cos(a))/sin(a) , b*tan(a/2) )$
-defrule(tr004, b*(1+cos(a))/sin(a) , b*cot(a/2) )$
-defrule(tr005, b*2/(1+cos(a)) , b*sec(a/2)^2 )$
-defrule(tr006, b*2/(1-cos(a)) , b*csc(a/2)^2 )$
+matchdeclare(fs_pb,lambda([x],freeof(cos(fs_pa),sin(fs_pa),x)))$
+defrule(fs_tr001, fs_pb*(1-cos(fs_pa))/2 , fs_pb*sin(fs_pa/2)^2 )$
+defrule(fs_tr002, fs_pb*(1+cos(fs_pa))/2 , fs_pb*cos(fs_pa/2)^2 )$
+defrule(fs_tr003, fs_pb*(1-cos(fs_pa))/sin(fs_pa) , fs_pb*tan(fs_pa/2) )$
+defrule(fs_tr004, fs_pb*(1+cos(fs_pa))/sin(fs_pa) , fs_pb*cot(fs_pa/2) )$
+defrule(fs_tr005, fs_pb*2/(1+cos(fs_pa)) , fs_pb*sec(fs_pa/2)^2 )$
+defrule(fs_tr006, fs_pb*2/(1-cos(fs_pa)) , fs_pb*csc(fs_pa/2)^2 )$
 
-defrule(tr007, b*(-1+cos(a))/2 , -b*sin(a/2)^2 )$
-defrule(tr008, b*(-1-cos(a))/2 , -b*cos(a/2)^2 )$
-defrule(tr009, b*(-1+cos(a))/sin(a) , -b*tan(a/2) )$
-defrule(tr010, b*(-1-cos(a))/sin(a) , -b*cot(a/2) )$
-defrule(tr011, b*2/(-1-cos(a)) , -b*sec(a/2)^2 )$
-defrule(tr012, b*2/(-1+cos(a)) , -b*csc(a/2)^2 )$
+defrule(fs_tr007, fs_pb*(-1+cos(fs_pa))/2 , -fs_pb*sin(fs_pa/2)^2 )$
+defrule(fs_tr008, fs_pb*(-1-cos(fs_pa))/2 , -fs_pb*cos(fs_pa/2)^2 )$
+defrule(fs_tr009, fs_pb*(-1+cos(fs_pa))/sin(fs_pa) , -fs_pb*tan(fs_pa/2) )$
+defrule(fs_tr010, fs_pb*(-1-cos(fs_pa))/sin(fs_pa) , -fs_pb*cot(fs_pa/2) )$
+defrule(fs_tr011, fs_pb*2/(-1-cos(fs_pa)) , -fs_pb*sec(fs_pa/2)^2 )$
+defrule(fs_tr012, fs_pb*2/(-1+cos(fs_pa)) , -fs_pb*csc(fs_pa/2)^2 )$
 
 /* double angle formulae */
-matchdeclare(b,lambda([x],freeof(tan(a),x)))$
-defrule(tr101, b*2*tan(a)/(1-tan(a)^2), b*tan(2*a) )$
-defrule(tr102, b*(1-tan(a)^2)/(2*tan(a)), b*cot(2*a) )$
-defrule(tr103, b*(1+tan(a)^2)/(1-tan(a)^2), b*sec(2*a) )$
-defrule(tr104, b*(1+tan(a)^2)/(2*tan(a)), b*csc(2*a) )$
+matchdeclare(fs_pb,lambda([x],freeof(tan(fs_pa),x)))$
+defrule(fs_tr101, fs_pb*2*tan(fs_pa)/(1-tan(fs_pa)^2), fs_pb*tan(2*fs_pa) )$
+defrule(fs_tr102, fs_pb*(1-tan(fs_pa)^2)/(2*tan(fs_pa)), fs_pb*cot(2*fs_pa) )$
+defrule(fs_tr103, fs_pb*(1+tan(fs_pa)^2)/(1-tan(fs_pa)^2), fs_pb*sec(2*fs_pa) )$
+defrule(fs_tr104, fs_pb*(1+tan(fs_pa)^2)/(2*tan(fs_pa)), fs_pb*csc(2*fs_pa) )$
 
-defrule(tr105, 2*tan(a)/(-1+tan(a)^2), -tan(2*a) )$
-defrule(tr106, b*(-1+tan(a)^2)/(2*tan(a)), -b*cot(2*a) )$
-defrule(tr107, b*(1+tan(a)^2)/(-1+tan(a)^2), -b*sec(2*a) )$
-defrule(tr108, b*(-1-tan(a)^2)/(2*tan(a)), -b*csc(2*a) )$
+defrule(fs_tr105, 2*tan(fs_pa)/(-1+tan(fs_pa)^2), -tan(2*fs_pa) )$
+defrule(fs_tr106, fs_pb*(-1+tan(fs_pa)^2)/(2*tan(fs_pa)), -fs_pb*cot(2*fs_pa) )$
+defrule(fs_tr107, fs_pb*(1+tan(fs_pa)^2)/(-1+tan(fs_pa)^2), -fs_pb*sec(2*fs_pa) )$
+defrule(fs_tr108, fs_pb*(-1-tan(fs_pa)^2)/(2*tan(fs_pa)), -fs_pb*csc(2*fs_pa) )$
 
 /* exponentials */
-matchdeclare(b,lambda([x],freeof(cos(a),sin(a),x)))$
-defrule(tr201, b*(cos(a)+%i*sin(a)) , b*exp(%i*a) )$
-defrule(tr202, b*(cos(a)-%i*sin(a)) , b*exp(-%i*a) )$
-defrule(tr203, b*(-cos(a)+%i*sin(a)) , -b*exp(-%i*a) )$
+matchdeclare(fs_pb,lambda([x],freeof(cos(fs_pa),sin(fs_pa),x)))$
+defrule(fs_tr201, fs_pb*(cos(fs_pa)+%i*sin(fs_pa)) , fs_pb*exp(%i*fs_pa) )$
+defrule(fs_tr202, fs_pb*(cos(fs_pa)-%i*sin(fs_pa)) , fs_pb*exp(-%i*fs_pa) )$
+defrule(fs_tr203, fs_pb*(-cos(fs_pa)+%i*sin(fs_pa)) , -fs_pb*exp(-%i*fs_pa) )$
 
 /* csc and cot rules */
-matchdeclare(b,lambda([x],freeof(cos(a),sin(a),csc(a),cot(a),x)))$
-defrule(tr301, b*(csc(a)^2-cot(a)^2), b)$
-matchdeclare(b,lambda([x],freeof(tan(a),cot(a),x)))$
-defrule(tr302, b*(tan(a)+cot(a)), b*2*csc(2*a) )$
-defrule(tr303, b*(cot(a)-tan(a)), b*2*cot(2*a) )$
+matchdeclare(fs_pb,lambda([x],freeof(cos(fs_pa),sin(fs_pa),csc(fs_pa),cot(fs_pa),x)))$
+defrule(fs_tr301, fs_pb*(csc(fs_pa)^2-cot(fs_pa)^2), fs_pb)$
+matchdeclare(fs_pb,lambda([x],freeof(tan(fs_pa),cot(fs_pa),x)))$
+defrule(fs_tr302, fs_pb*(tan(fs_pa)+cot(fs_pa)), fs_pb*2*csc(2*fs_pa) )$
+defrule(fs_tr303, fs_pb*(cot(fs_pa)-tan(fs_pa)), fs_pb*2*cot(2*fs_pa) )$
 
 /* hyperbolic */
-/* matchdeclare([b,z],all)$ */
-matchdeclare(b,all,z,freeof(%i))$
-defrule(tr401, b*(%e^z-%e^-z)/(%e^z+%e^-z), b*tanh(z) )$
-defrule(tr402, b*(%e^(2*z)-1)/(%e^(2*z)+1), b*tanh(z) )$
-defrule(tr403, b*(%e^z+%e^-z)/2, b*cosh(z) )$
-defrule(tr404, b*(%e^z-%e^-z)/2, b*sinh(z) )$
-defrule(tr405, b*sinh(z)/cosh(z),b*tanh(z) )$
+/* matchdeclare([fs_pb,fs_pz],all)$ */
+matchdeclare(fs_pb,all,fs_pz,freeof(%i))$
+defrule(fs_tr401, fs_pb*(%e^fs_pz-%e^-fs_pz)/(%e^fs_pz+%e^-fs_pz), fs_pb*tanh(fs_pz) )$
+defrule(fs_tr402, fs_pb*(%e^(2*fs_pz)-1)/(%e^(2*fs_pz)+1), fs_pb*tanh(fs_pz) )$
+defrule(fs_tr403, fs_pb*(%e^fs_pz+%e^-fs_pz)/2, fs_pb*cosh(fs_pz) )$
+defrule(fs_tr404, fs_pb*(%e^fs_pz-%e^-fs_pz)/2, fs_pb*sinh(fs_pz) )$
+defrule(fs_tr405, fs_pb*sinh(fs_pz)/cosh(fs_pz),fs_pb*tanh(fs_pz) )$
 
 
-fstrgrule:[tr001,tr002,tr003,tr004,tr005,tr006,
-tr007,tr008,tr009,tr010,tr011,tr012,
-tr101,tr102,tr103,tr104,tr105,tr106,tr107,tr108,
-tr201,tr202,tr203,
-tr301,tr302,tr303,
-tr401,tr402,tr403,tr404,tr405]$
+fs_trig_rules:[fs_tr001,fs_tr002,fs_tr003,fs_tr004,fs_tr005,fs_tr006,
+fs_tr007,fs_tr008,fs_tr009,fs_tr010,fs_tr011,fs_tr012,
+fs_tr101,fs_tr102,fs_tr103,fs_tr104,fs_tr105,fs_tr106,fs_tr107,fs_tr108,
+fs_tr201,fs_tr202,fs_tr203,
+fs_tr301,fs_tr302,fs_tr303,
+fs_tr401,fs_tr402,fs_tr403,fs_tr404,fs_tr405]$
 
 
 /***************************************/
@@ -81,16 +81,22 @@ tr401,tr402,tr403,tr404,tr405]$
 /* This function cycles through the trig rules above and,
 if the substitution reduces the size of the expression,
 takes the substitution.
+
+apply1 evaluates its first argument, so it gets the quoted 'e and
+evaluates that to the expression. Passing the expression itself would
+evaluate it a second time, and any variable in it that shares a name with
+a local variable of a calling function (p, r, i, e, ...) would take that
+local's value.
 */
-fstrigsimp(e):=block([fsrulesN:length(fstrgrule),Li,tmp],
+fstrigsimp(e):=block([fsrulesN:length(fs_trig_rules),Li,tmp,tmpsz],
     Li:fssize(e),
     if fsdebug>2 then print(e),
     for i: 1 thru fsrulesN do
-      ( if fsdebug>1 then print("trying rule ",fstrgrule[i] ),
-        tmp: apply('apply1,[e,fstrgrule[i]]),
+      ( if fsdebug>1 then print("trying rule ",fs_trig_rules[i] ),
+        tmp: apply('apply1,['e,fs_trig_rules[i]]),
         tmpsz: fssize(tmp),
         if tmpsz<Li then (
-          if fsdebug>1 then (print("trgrule: ",fstrgrule[i]),print("tmp= ",tmp)),
+          if fsdebug>1 then (print("trgrule: ",fs_trig_rules[i]),print("tmp= ",tmp)),
           Li:tmpsz, e:tmp)),
     e
 )$

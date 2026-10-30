@@ -4,9 +4,30 @@
 (in-package :cl-info)
 (let ((html-index
        '(("fsdebug"
-          "/home/ehm/math/Maxima/share/ehm/fsimp-maxima/docs/fsimp_html/index.html"
+          "fsimp_html/index.html"
           "index-fsdebug")
+         ("fs_split"
+          "fsimp_html/index.html"
+          "index-fs_005fsplit")
+         ("fs_search"
+          "fsimp_html/index.html"
+          "index-fs_005fsearch")
+         ("fs_prefer"
+          "fsimp_html/index.html"
+          "index-fs_005fprefer")
+         ("fs_max_rounds"
+          "fsimp_html/index.html"
+          "index-fs_005fmax_005frounds")
+         ("fs_check"
+          "fsimp_html/index.html"
+          "index-fs_005fcheck")
+         ("fs_beam_width"
+          "fsimp_html/index.html"
+          "index-fs_005fbeam_005fwidth")
          ("fullsimp"
-          "/home/ehm/math/Maxima/share/ehm/fsimp-maxima/docs/fsimp_html/index.html"
-          "index-fullsimp"))))
-  (load-html-index html-index))
+          "fsimp_html/index.html"
+          "index-fullsimp")
+         ("fs_rank"
+          "fsimp_html/index.html"
+          "index-fs_005frank"))))
+  (let ((dir (maxima::maxima-load-pathname-directory))) (dolist (entry html-index) (destructuring-bind (item path id) entry (setf (gethash item *html-index*) (cons (namestring (merge-pathnames path dir)) id))))))

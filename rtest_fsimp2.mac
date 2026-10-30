@@ -85,10 +85,16 @@ fullsimp( exp(log(x)) );
 x;
 fullsimp( log(exp(x)) );
 x;
-fullsimp( log(a) + log(b) );
+/* holds for a > 0, b > 0 but not in general, so checked under that assumption */
+(assume(a > 0, b > 0), r : fullsimp( log(a) + log(b) ), forget(a > 0, b > 0), r);
 log(a*b);
-fullsimp( log(a) - log(b) );
+fullsimp( log(a) + log(b) );
+log(a) + log(b);
+/* holds for a > 0, b > 0 but not in general, so checked under that assumption */
+(assume(a > 0, b > 0), r : fullsimp( log(a) - log(b) ), forget(a > 0, b > 0), r);
 log(a/b);
+fullsimp( log(a) - log(b) );
+log(a) - log(b);
 fullsimp( k * log(x) );
 log(x^k);
 fullsimp( exp(a) * exp(b) );
@@ -109,8 +115,11 @@ fullsimp( log(1 / x) + log(x) );
 0;
 fullsimp( (exp(x))^2 );
 exp(2*x);
-fullsimp( log(x - 1) + log(x + 1) );
+/* holds for x > 1 but not in general, so checked under that assumption */
+(assume(x > 1), r : fullsimp( log(x - 1) + log(x + 1) ), forget(x > 1), r);
 log(x^2 - 1);
+fullsimp( log(x - 1) + log(x + 1) );
+log(x - 1) + log(x + 1);
 fullsimp( x^(log(y)/log(x)) );
 y;
 fullsimp( log(x^2) );
@@ -119,16 +128,25 @@ fullsimp( exp(x) * exp(-x) );
 1;
 fullsimp( log(exp((x + 1)^2)) );
 (x + 1)^2;
-fullsimp( log(x) - log(y) + log(z) );
+/* holds for x > 0, y > 0, z > 0 but not in general, so checked under that assumption */
+(assume(x > 0, y > 0, z > 0), r : fullsimp( log(x) - log(y) + log(z) ), forget(x > 0, y > 0, z > 0), r);
 log(x*z/y);
+fullsimp( log(x) - log(y) + log(z) );
+log(x) - log(y) + log(z);
 fullsimp( sqrt(x^4) );
 x^2;
 fullsimp( (x^0.5)^2 );
 x;
-fullsimp( sqrt(x) * sqrt(y) );
+/* holds for x > 0, y > 0 but not in general, so checked under that assumption */
+(assume(x > 0, y > 0), r : fullsimp( sqrt(x) * sqrt(y) ), forget(x > 0, y > 0), r);
 sqrt(x*y);
-fullsimp( sqrt(x^2 + 2*x + 1) );
+fullsimp( sqrt(x) * sqrt(y) );
+sqrt(x) * sqrt(y);
+/* holds for x > -1 but not in general, so checked under that assumption */
+(assume(x > -1), r : fullsimp( sqrt(x^2 + 2*x + 1) ), forget(x > -1), r);
 x + 1;
+fullsimp( sqrt(x^2 + 2*x + 1) );
+sqrt(x^2 + 2*x + 1);
 fullsimp( (x^(1/3))^3 );
 x;
 fullsimp( sqrt(x^2 / y^2) );
@@ -139,10 +157,16 @@ fullsimp( x^a * x^b );
 x^(a + b);
 fullsimp( x^a / x^b );
 x^(a - b);
-fullsimp( sqrt(x - 1) * sqrt(x + 1) );
+/* holds for x > 1 but not in general, so checked under that assumption */
+(assume(x > 1), r : fullsimp( sqrt(x - 1) * sqrt(x + 1) ), forget(x > 1), r);
 sqrt(x^2 - 1);
-fullsimp( sqrt(4*x^2 + 8*x + 4) );
+fullsimp( sqrt(x - 1) * sqrt(x + 1) );
+sqrt(x - 1) * sqrt(x + 1);
+/* holds for x > -1 but not in general, so checked under that assumption */
+(assume(x > -1), r : fullsimp( sqrt(4*x^2 + 8*x + 4) ), forget(x > -1), r);
 2*x + 2;
+fullsimp( sqrt(4*x^2 + 8*x + 4) );
+sqrt(4*x^2 + 8*x + 4);
 fullsimp( (x^2)^(1/2) );
 abs(x);
 fullsimp( (x^3)^(1/3) );
@@ -155,8 +179,11 @@ fullsimp( (sqrt(x) + sqrt(y)) * (sqrt(x) - sqrt(y)) );
 x - y;
 fullsimp( (x + sqrt(y)) * (x - sqrt(y)) );
 x^2 - y;
-fullsimp( (sqrt(x) + sqrt(y))^2 - 2*sqrt(x*y) );
+/* holds for x > 0, y > 0 but not in general, so checked under that assumption */
+(assume(x > 0, y > 0), r : fullsimp( (sqrt(x) + sqrt(y))^2 - 2*sqrt(x*y) ), forget(x > 0, y > 0), r);
 x + y;
+fullsimp( (sqrt(x) + sqrt(y))^2 - 2*sqrt(x*y) );
+(sqrt(x) + sqrt(y))^2 - 2*sqrt(x*y);
 fullsimp( (x^(1/a))^a );
 (x^(1/a))^a;
 fullsimp( x^(1/2) * x^(1/3) * x^(1/6) );
@@ -173,8 +200,11 @@ fullsimp( tan(x) * cos(x)^2 / sin(x) );
 cos(x);
 fullsimp( (exp(2*x))^(1/2) );
 exp(x);
-fullsimp( log((x + 1)/(x^2 - 1)) );
+/* holds for x > 1 but not in general, so checked under that assumption */
+(assume(x > 1), r : fullsimp( log((x + 1)/(x^2 - 1)) ), forget(x > 1), r);
 -log(x - 1);
+fullsimp( log((x + 1)/(x^2 - 1)) );
+log((x + 1)/(x^2 - 1));
 fullsimp( tan(x)^2 - sec(x)^2 );
 -1;
 fullsimp( exp(x) * (exp(x) + exp(-x)) - exp(2*x) );
@@ -187,8 +217,11 @@ fullsimp( ((x^2 - 4)/(x + 2))^2 );
 (x-2)^2;
 fullsimp( log(exp(a) * exp(b) / exp(c)) );
 a + b - c;
-fullsimp( ((x^2 - 2*x + 1) / (x^2 + 2*x + 1))^0.5 );
+/* holds for x > 1 but not in general, so checked under that assumption */
+(assume(x > 1), r : fullsimp( ((x^2 - 2*x + 1) / (x^2 + 2*x + 1))^0.5 ), forget(x > 1), r);
 (x - 1)/(x + 1);
+fullsimp( ((x^2 - 2*x + 1) / (x^2 + 2*x + 1))^0.5 );
+((x^2 - 2*x + 1) / (x^2 + 2*x + 1))^0.5;
 fullsimp( (sin(x) + cos(x))^2 + (sin(x) - cos(x))^2 );
 2;
 fullsimp( (tan(x) + cot(x)) * sin(x) * cos(x) );

@@ -1,0 +1,1227 @@
+\documentclass[11pt]{amsart}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage[section]{placeins}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalize,nameinlink]{cleveref}
+
+\lstdefinestyle{mx}{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,
+  showstringspaces=false,upquote=true}
+\lstset{style=mx}
+\newcommand{\mx}{\lstinline[style=mx]}
+
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{lemma}[proposition]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[proposition]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[proposition]{Remark}
+
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+
+\DeclareMathOperator{\size}{size}
+\DeclareMathOperator{\conssize}{conssize}
+\DeclareMathOperator{\slength}{slength}
+\DeclareMathOperator{\excess}{excess}
+\DeclareMathOperator{\rank}{rank}
+
+\begin{document}
+
+\title[Simplification as search in Maxima]{Simplification as search in Maxima:\\
+the fullsimp package and its extensions}
+
+\author{Chris Dawes}
+\email{cmsd2@cantab.net}
+
+\date{29 October 2026}
+
+\subjclass[2020]{68W30}
+\keywords{computer algebra, simplification, Maxima, numerical identity testing,
+covering arrays, beam search}
+
+\begin{abstract}
+Maxima offers many transformations that rewrite an expression into an
+equivalent form, and leaves the choice among them to the user. The
+\texttt{fullsimp} package by E.~Majzoub makes that choice by search: it
+applies a selection of built-in transformations in turn and keeps the
+smallest expression it meets, accepting bounded increases in size along the
+way. This paper describes that algorithm and a series of extensions to it.
+Two corrections remove ways in which the result depended on the names of
+variables and functions. A numerical equivalence check rejects rewrites that hold on only
+part of the domain; it draws test points from a pairwise covering design and
+evaluates them with the conventions Maxima itself uses. A beam search
+guarantees, whenever the check can evaluate the input, a result no larger
+than any single verified transformation of it. Splitting sums and products
+into parts with disjoint variables keeps unrelated parts from interfering, and an ordered list of form preferences
+lets the user rank candidates before size. We report the effect of each
+extension on the package's test corpus and on targeted examples, and describe
+the checks used to validate them.
+\end{abstract}
+
+\maketitle
+
+%======================================================================
+\section{Introduction}
+%======================================================================
+
+A computer algebra system simplifies at two levels. Automatic simplification
+applies a fixed set of rules to every expression it builds, such as
+collecting like terms and ordering factors. Beyond that, the user asks for
+particular transformations, each of which brings an expression into a
+normal form of its own, such as a quotient of expanded polynomials or a
+product of irreducible factors \cite{Moses71,BuchbergerLoos82}. Which of
+these forms suits a reader depends on the expression and on the purpose
+\cite{Moses71}; Carette gives a formal definition of the representational
+part of the question, based on minimum description length
+\cite{Carette04}.
+
+Maxima \cite{Maxima} follows this design. Its simplifier runs on every
+result, and functions such as \mx|ratsimp|, \mx|factor|, \mx|trigsimp|,
+\mx|radcan| and \mx|logcontract| provide the further transformations. A user
+who wants the simplest form of an expression tries several of them, often in
+sequence, and compares the results by eye. Mathematica automates this step:
+\texttt{FullSimplify} searches over its transformations, guided by a
+complexity function that the user may replace \cite{WolframFullSimplify}.
+
+The \texttt{fullsimp} package by E.~Majzoub \cite{fullsimp} brings a search
+of this kind to Maxima. It grew out of code by D.~Scherfgen, and Majzoub
+described it on the Maxima mailing list in December 2025 \cite{Majzoub25}. It
+measures an expression by the number of cons cells in its internal
+representation plus the length of its printed form, applies a list of
+built-in transformations chosen for the functions present, and returns the
+smallest result. While it searches, it lets an intermediate expression grow,
+so that a transformation that makes the expression larger can lead to a
+smaller one later.
+
+This paper documents that algorithm and seven changes made to it, each
+developed and tested on its own:
+\begin{itemize}
+\item a correction to how one transformation evaluates its input
+  (\cref{sec:fstrigsimp-eval});
+\item a size measure that does not depend on the names of variables or
+  functions (\cref{sec:names});
+\item packaging that installs under either name and keeps the package's own
+  names out of the user's session (\cref{sec:session});
+\item a numerical check that rejects candidates whose value differs from the
+  input (\cref{sec:check});
+\item a beam search that keeps the input available to every transformation
+  (\cref{sec:beam});
+\item a split of sums and products into parts with disjoint variables
+  (\cref{sec:split});
+\item an ordered list of form preferences that rank candidates before size
+  (\cref{sec:prefer}).
+\end{itemize}
+\Cref{sec:background} reviews the parts of Maxima the search relies on,
+\cref{sec:original} describes the original algorithm, \cref{sec:validation}
+describes how we validated the changes and measures their combined effect,
+and \cref{sec:limits} lists known limitations.
+
+The code is available from the author's fork of the package
+\cite{fullsimpFork}, with one branch per change. Each change has a written
+specification in the repository's \texttt{openspec} directory. The test files
+are at the top level, the test scripts in \texttt{tests}, and the benchmark
+scripts behind \cref{sec:validation,sec:split} are \mx|paper/fsimp_bench.mac|
+and \mx|paper/fsimp_pairs.mac|. We took all measurements with Maxima~5.50.0 on
+SBCL~2.6.9, on an Apple M4 with macOS~15.6.
+
+%======================================================================
+\section{Background}\label{sec:background}
+%======================================================================
+
+\subsection{Expressions}
+
+Maxima represents an expression as a Lisp list whose first element names the
+operator, so that Maxima stores $x + yz$ as
+\begin{center}
+\mx|((mplus) $x ((mtimes) $y $z))|.
+\end{center}
+The simplifier keeps expressions in a canonical internal form. Subtraction and
+division do not appear in it: $a - b$ is $a + (-1)\cdot b$ and $x/y$ is
+$x \cdot y^{-1}$. Roots are powers, so $\sqrt{x}$ is $x^{1/2}$. Maxima functions see this form
+when the option \mx|inflag| is true. The simplifier also orders the terms of
+sums and the factors of products by a fixed ordering on their parts, in
+which the names of variables take part, so renaming a variable can reorder
+an expression.
+
+A function with no definition stays unevaluated: \mx|f(x)| is an expression
+in its own right, and the quoted \mx|'f(x)| is its noun form. Built-in
+mathematical functions such as $\sin$ and $\Gamma$ carry simplification
+routines, which Maxima records as the \mx|operators| property of the
+operator.
+
+Maxima's numeric conventions follow its default \mx|domain : real|. An odd root of
+a negative real is real: the simplifier rewrites $(-8)^{1/3}$ as $-2$, and
+evaluating \mx|(-8.0)^(1/3)| gives $-2$ to within rounding. For other arguments, functions
+return principal values.
+
+The assume database holds facts declared by \mx|assume| and \mx|declare|,
+such as $x > 0$ or ``$n$ is an integer''. Transformations consult it, and
+\mx|facts()| returns its contents.
+
+Local variables of a \mx|block| are dynamically scoped: a binding made by a
+block is visible to every function called while the block runs. Maxima
+functions also evaluate their arguments. Both facts matter in
+\cref{sec:fstrigsimp-eval}.
+
+\subsection{Transformations}
+
+\Cref{tab:transforms} lists the transformations \texttt{fullsimp} uses. We
+call a transformation \emph{value-preserving} when its result equals its
+input at every point where both are defined. Three of them rely on rules
+such as $\sqrt{xy} = \sqrt{x}\sqrt{y}$ or $\log a + \log b = \log ab$, which
+hold only on part of the complex domain, and the package also counts the
+$\Gamma$ routines among those that are not value-preserving. \mx|radcan|, for
+example, rewrites $\sqrt{x^2+2x+1}$ as $x+1$, which differs from the input
+for $x < -1$.
+
+\begin{table}[ht]
+\caption{Transformations used by \texttt{fullsimp}. Value-preserving
+transformations agree with their input wherever both are defined; the check
+of \cref{sec:check} treats the others, and any user routine, as not
+value-preserving.}
+\label{tab:transforms}
+\small
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{0.40\textwidth}c@{}}
+\toprule
+Transformation & Effect & Value-preserving \\
+\midrule
+\mx|resimplify|, \mx|combine| & resimplify; join terms with a common denominator & yes \\
+\mx|expand|, \mx|multthru| & distribute products over sums & yes \\
+\mx|xthru|, \mx|ratsimp| & combine into one fraction; rational normal form & yes \\
+\mx|factor| & factor over the integers & yes \\
+\mx|minfactorial| & cancel factorials in quotients & yes \\
+\mx|trigsimp|, \mx|trigrat| & trigonometric identities; rational form in $\sin$, $\cos$ & yes \\
+\mx|trigexpand|, \mx|trigreduce| & expand multiple angles; reduce powers & yes \\
+\mx|exponentialize|, \mx|demoivre| & trigonometric to exponential and back & yes \\
+\mx|fstrigsimp| & the package's own trigonometric rules (\cref{sec:fstrigsimp}) & yes \\
+\mx|radcan| & canonical form for exponentials and radicals, logarithms included & no \\
+\mx|gamma_simp| & simplify $\Gamma$ functions (\texttt{gamma\_simp} package) & no \\
+\mx|factorial_simp| & simplify factorials (\texttt{gamma\_simp} package) & no \\
+\mx|fs_rationalize| & \mx|ratsimp| with \mx|algebraic : true| (\cref{sec:prefer}) & yes \\
+\mx|rootscontract| & $\sqrt{x}\sqrt{y} \to \sqrt{xy}$ & no \\
+\mx|logcontract| & $\log a + \log b \to \log ab$ & no \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Size}
+
+The package measures an expression by
+\begin{equation}\label{eq:size}
+  \size(e) = \conssize(e) + \slength(e),
+\end{equation}
+where $\slength(e)$ is the length of the one-line string Maxima prints for
+$e$, and $\conssize$ is Maxima's own measure of the internal list, defined
+by $\conssize(a) = 0$ for an atom $a$ and
+\[
+  \conssize(f(a_1,\dots,a_k)) = 1 + \sum_{i=1}^{k} \bigl(1 + \conssize(a_i)\bigr).
+\]
+For example, $\conssize(\sin x + x^2) = 8$. Maxima's \mx|scsimp| uses
+$\conssize$ as its size measure as well. Other measures exist: Maxima's
+\texttt{charsets} package emulates Maple's \texttt{length}
+\cite{Talon25}, and Mathematica's default complexity function ranks forms
+mainly by leaf count, counting integers with more digits as more complex
+\cite{WolframFullSimplify}. As S.~Macrakis noted on the Maxima
+list, size is not the only reasonable objective: $x/(x^2-1)$ and
+$x/((x-1)(x+1))$ are close in length, and the second shows the poles
+\cite{Macrakis18}. \Cref{sec:prefer} returns to this point. In the package
+the size function is \mx|fscost|, which the user may redefine.
+
+\subsection{Test material}\label{sec:corpus}
+
+The package's tests are Maxima \emph{rtest} files: pairs of an input and its
+expected result. The three original files, by Majzoub, hold 174 calls of
+\mx|fullsimp| on a single expression; with one regression test added by the
+change of \cref{sec:names} they hold 175, and we call these the
+\emph{corpus}. Of these, 168 contain only plain variables, which the renaming
+experiments of \cref{sec:names} need. The new test files bring the number of
+\mx|fullsimp| calls in all seven files to 198.
+
+%======================================================================
+\section{The original algorithm}\label{sec:original}
+%======================================================================
+
+\subsection{Choosing transformations}
+
+\texttt{fullsimp} first maps itself over the entries of lists and matrices
+(and the elements of sets). For a
+single expression $e$ it builds a list $T$ of transformations from the
+functions $e$ contains. The base list is
+\begin{center}
+\mx|resimplify, expand, combine, radcan, ratsimp, rootscontract,|\\
+\mx|xthru, multthru, factor, minfactorial|.
+\end{center}
+If $e$ contains a trigonometric or hyperbolic function, an exponential or
+$\mathrm{e}$, the list
+\begin{center}
+\mx|demoivre, exponentialize, factor, fstrigsimp, trigexpand,|\\
+\mx|factor, trigsimp, trigreduce, trigrat, fstrigsimp|
+\end{center}
+goes in front. Logarithms add
+\mx|logcontract|, and $\Gamma$ functions and factorials add the routines of
+the \texttt{gamma\_simp} package. The user can remove entries by naming them
+in the call, as in \mx|fullsimp(e, radcan)|, and append routines of their own
+through the list \mx|fs_custom_simp|. After each transformation the package
+applies \mx|combine|.
+
+\subsection{The trigonometric rules}\label{sec:fstrigsimp}
+
+\mx|fstrigsimp| applies 31 rewrite rules, in five families: twelve half-angle
+rules such as $(1+\cos a)/\sin a \to \cot(a/2)$, eight double-angle rules in
+$\tan$, three rules for $\cos a \pm \mathrm{i}\sin a$, three for $\csc$ and
+$\cot$ such as $\tan a + \cot a \to 2\csc 2a$, and five that recognise
+hyperbolic functions, four of them in exponentials. Most rules carry a
+pattern variable for a cofactor, so they apply inside a product. The rules run in a fixed
+order through \mx|apply1|, which rewrites every matching subexpression, and
+\mx|fstrigsimp| keeps the result of a rule only if it is smaller.
+
+\subsection{The sweep}
+
+The search keeps two expressions: the best found so far, $b$, and a current
+state, $s$. It passes over $T$ twice. Each transformation produces a
+candidate from $s$. A candidate no larger than $s$ becomes the new state,
+and if it is smaller than $b$ it becomes the new best. A larger candidate
+becomes the state if its relative increase in size is below a threshold
+$\sigma = 0.8$. The search returns $b$ (\cref{alg:sweep}).
+
+\begin{algorithm}[ht]
+\caption{The sweep}\label{alg:sweep}
+\begin{algorithmic}[1]
+\Require expression $e$, transformations $T = (t_1,\dots,t_n)$, threshold $\sigma = 0.8$
+\Ensure $b$ with $\size(b) \le \size(e)$
+\State $s \gets e$; $b \gets e$
+\For{$\mathit{pass} = 1, 2$}
+  \For{$i = 1,\dots,n$}
+    \State $c \gets \mathrm{combine}(t_i(s))$
+    \If{$\size(c) \le \size(s)$}
+      \State $s \gets c$
+      \If{$\size(c) < \size(b)$} $b \gets c$ \EndIf
+    \ElsIf{$(\size(c) - \size(s))/\size(s) < \sigma$}
+      \State $s \gets c$ \Comment{accept a larger state}
+    \EndIf
+  \EndFor
+\EndFor
+\State \Return $b$
+\end{algorithmic}
+\end{algorithm}
+
+The sweep calls $2n$ transformations, is deterministic, and never returns an
+expression larger than its input. The package's documentation describes the
+search as a simplified form of simulated annealing \cite{Kirkpatrick83}. Its
+acceptance rule, which takes any worse state whose deterioration stays
+below a threshold, is also the rule of threshold accepting
+\cite{DueckScheuer90}, here with a fixed threshold instead of a decreasing
+one. A typical run on
+\[
+  \frac{\cos t + 1}{(\mathrm{i}\sin p - \cos p)\sin t}
+\]
+applies \mx|demoivre| and \mx|exponentialize| without gain, then
+\mx|fstrigsimp|, whose rules
+\[
+  \frac{1+\cos a}{\sin a} \to \cot\frac a2, \qquad
+  -\cos a + \mathrm{i}\sin a \to -\mathrm{e}^{-\mathrm{i}a}
+\]
+give $-\mathrm{e}^{\mathrm{i}p}\cot(t/2)$, reducing the size from 68 to 39.
+
+%======================================================================
+\section{Dependence on the user's names}\label{sec:fstrigsimp-eval}
+%======================================================================
+
+Three problems concerned the user's names. Two made results depend on the
+names in the input expression, and the third let the package's own names
+interfere with the user's. We found them while developing the later
+changes, and corrected each in a change of its own, placed before the
+others.
+
+\subsection{Double evaluation in fstrigsimp}
+
+\mx|fstrigsimp| applied its $i$-th rule to its argument $e$ by
+\mx|apply('apply1, [e, fstrgrule[i]])|. \mx|apply| evaluates its list
+argument, which turns the symbol $e$ into the expression, and \mx|apply1|
+then evaluates that expression again. So Maxima evaluated every variable of
+the user's expression in the dynamic environment of the search, and a
+variable named like a local variable of any function on the call stack took
+that variable's value. \Cref{tab:collisions} shows the effect on the example of
+the previous section, written in different variable names.
+
+\begin{table}[ht]
+\caption{Results for $(\cos t+1)/((\mathrm{i}\sin v-\cos v)\sin t)$ before
+the correction, by the name of $v$. The expected result is
+$-\mathrm{e}^{\mathrm{i}v}\cot(t/2)$.}
+\label{tab:collisions}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+$v$ & Role on the call stack & Result \\
+\midrule
+\mx|i| & loop index in \mx|fstrigsimp| (value 4 when the rule fires) & $-\mathrm{e}^{4\mathrm{i}}\cot(t/2)$ \\
+\mx|L| & pass counter in the sweep (value 1) & $-\mathrm{e}^{\mathrm{i}}\cot(t/2)$ \\
+\mx|Li| & size of the argument in \mx|fstrigsimp| (value 70) & $-\mathrm{e}^{70\mathrm{i}}\cot(t/2)$ \\
+\mx|r|, \mx|e| & the sweep's transformation list; the argument itself & input unchanged \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The correction passes the quoted symbol,
+\begin{center}
+\mx|apply('apply1, ['e, fstrgrule[i]])|,
+\end{center}
+so that \mx|apply1| evaluates the symbol once, to the expression. A regression
+test binds a variable named \mx|p| outside \mx|fullsimp| and checks that the
+result does not change. A more general harness, described in
+\cref{sec:validation}, does the same for every local name on the call path.
+
+\subsection{Names in the cost}\label{sec:names}
+
+The string term in \eqref{eq:size} counts each occurrence of a variable by
+the length of its name, so the size of an expression, and with it the path
+of the sweep, depends on the names of the variables. On the example above
+the second transformation, \mx|exponentialize|, raises the size by about
+80 per cent. With $v$ named \mx|zzz| the size goes from 72 to 132, an increase of
+$0.833$, which the threshold rejects. With \mx|zzzz| it goes from 74 to 133,
+an increase of $0.797$, which the threshold accepts. From that state the
+later transformations do not reach the $\cot$ form, and the sweep returns
+its input. The names of four, five, six and eight characters we tried all
+behaved like \mx|zzzz|.
+
+The correction discounts user-chosen names. Call a function \emph{unknown}
+if its operator has no \mx|operators| property and is not a subscripted
+variable; these are the calls, quoted or not, to functions the user has not
+defined. Let
+\[
+  \excess(e) = \sum_{v} n_v(e)\,(|v| - 1) + \sum_{f} m_f(e)\,(|f| - 1),
+\]
+where $v$ ranges over the variables of $e$ (as Maxima's \mx|listofvars|
+returns them, including subscripted variables such as $c_1$), $n_v(e)$ is
+the number of occurrences of $v$, $f$ ranges over unknown functions,
+$m_f(e)$ is the number of calls to $f$, and $|\cdot|$ is the printed length.
+The new measure is
+\begin{equation}\label{eq:size2}
+  \size(e) = \conssize(e) + \slength(e) - \excess(e).
+\end{equation}
+Each occurrence prints exactly once, so \eqref{eq:size2} counts every user
+name as one character. $\conssize$ never depended on names. Renaming may
+still reorder terms, but the count does not depend on their order.
+
+To measure the effect, we renamed every variable of the 168 corpus inputs
+whose variables are plain symbols (\cref{sec:corpus}), appending eight characters to
+each name. The old measure changed for all 168 expressions and the new
+measure for none. Simplifying the renamed inputs and renaming the results
+back gave a result different from the original in one case under the old
+measure, and in none under the new one. A further 17 synthetic cases with
+unknown functions, renamed from \mx|f| to \mx|ffffffffff| and so on, gave one
+difference under the old measure and none under the new.
+
+\subsection{Names in the user's session}\label{sec:session}
+
+Loading a Maxima package runs its files in the user's session, so every
+name they define becomes the user's name too. \texttt{fullsimp} declared
+$a$, $b$ and $z$ as pattern variables for its trigonometric rules, so that
+afterwards a rule the user wrote with \mx|defrule(r, a + x, 0)| matched
+$b + x$ as well. Its 31 rules were named \mx|tr001| to \mx|tr405|, and its
+Lisp file defined a user-level \mx|conssize|. All of these now carry an
+\mx|fs| prefix. Maxima's own \mx|trigsimp| declares $a$ in the same way when
+it first loads; the package loads it at once and removes that declaration,
+unless $a$ already had one, since the rules of \mx|trigsimp| are compiled by
+then.
+
+Two more effects reached the user. Loading the HTML help index emptied
+Maxima's own index, from 3164 entries to 9, because the generated file
+called a function that clears the table first; it now adds its entries.
+The search printed a line from \mx|rat| for every routine that met a float,
+and the check printed Maxima's error message for every test point where the
+input had no value, 48 lines for one call with an unevaluated integral. Both
+are now silent. The file \mx|fsimp.mac| also loads its companion files from
+its own directory, so a manual install works without the \texttt{docs}
+directory on the search path, and a small \mx|fullsimp.mac| makes
+\mx|load("fullsimp")| work, which the package manager \texttt{mxpm} needs.
+After these changes every function, variable and rule the package defines
+starts with \mx|fs|, apart from \mx|fullsimp|. An input with $\Gamma$ or a
+factorial still loads Maxima's \texttt{gamma\_simp} package, whose own
+functions the package cannot rename; excluding its routines keeps it out.
+
+%======================================================================
+\section{Checking candidates numerically}\label{sec:check}
+%======================================================================
+
+\subsection{Motivation}
+
+A search that keeps the smallest candidate favours the transformations of
+\cref{tab:transforms} that are not value-preserving, since their results
+tend to be small. To measure how often this happens we checked the expected
+results of the three original test files numerically against their inputs,
+with an evaluator independent of the package (\cref{sec:validation}). Of the
+174 expected results, 11 were not equal to their input at all points. They
+included
+\begin{gather*}
+  \log a + \log b \to \log ab, \qquad
+  \sqrt{x}\,\sqrt{y} \to \sqrt{xy},\\
+  \sqrt{x^2+2x+1} \to x + 1, \qquad
+  \log\frac{x+1}{x^2-1} \to -\log(x-1),
+\end{gather*}
+each of which holds for some values of the variables and fails for others.
+The check described in this section compares every candidate with the input
+at a fixed set of points and discards any candidate that disagrees at one.
+Assumptions in force restrict the points, so that
+\begin{center}
+  \mx|assume(x > -1)$ fullsimp(sqrt(x^2+2*x+1));|
+\end{center}
+returns $x+1$, while the same call without the assumption returns its input.
+
+\subsection{Test points}
+
+Numerical testing of polynomial identities at random points has well-known
+error bounds \cite{Schwartz80,Zippel79}. The expressions here contain
+logarithms, roots and inverse trigonometric functions, whose branch cuts
+make an identity hold on a region rather than almost everywhere. Whether a
+point detects a failure then depends on where each variable lies relative to
+the cuts. $\log a - \log b \to \log(a/b)$ fails exactly when $\arg a - \arg b$
+falls outside $(-\pi, \pi]$, which needs $a$ and $b$ in suitable different
+regions; when an earlier version of our audit sampled all
+variables of a point from the same region, it found 9 of the 11 failures,
+and only mixed signs found the other two.
+
+Each variable of a test point therefore takes a value of a given
+\emph{kind}: positive real (\texttt{pos}), negative real (\texttt{neg}), or
+complex in quadrant $j$ (\texttt{q}$j$). A complex value has modulus $m$
+and argument $(j-1)\pi/2 + (\pi/2)(0.15 + 0.7u)$ with $u$ uniform in
+$[0,1)$, which keeps it clear of the axes. The modulus is uniform in
+$[0.2, 1)$ or in $[1, 2)$.
+
+Covering every combination of kinds over $n$ variables would take $4^n$
+points for four kinds, 1024 for five variables. Failures such as the
+logarithm rule above need two variables in particular regions, so we
+require only that every \emph{pair} of variables meets every pair of kinds:
+for any two variables and any two kinds, some test point gives the first
+variable the first kind and the second variable the second. A set of points
+with this property is a pairwise covering array \cite{Cohen97}.
+
+For up to five variables an orthogonal array $\mathrm{OA}(16,5,4,2)$ gives
+this coverage with 16 points. It is a table of 16 rows and 5 columns with
+entries in $\{0,1,2,3\}$, in which any two columns, read together down the
+rows, show each of the 16 ordered pairs of symbols exactly once
+\cite{HedayatSloaneStufken99}. Each row is a test point, each column a
+variable, and each entry the kind that variable takes (\cref{tab:oa}). The
+rows correspond to the pairs $(a, b)$ with $a, b \in \{0,1,2,3\}$, and the
+columns are
+\[
+  a,\quad b,\quad a + b,\quad 2a + b,\quad 3a + b,
+\]
+computed in the field $\mathbb{F}_4$ with four elements, written
+$0, 1, 2, 3$. Addition in $\mathbb{F}_4$ is the bitwise exclusive or of the
+two-bit numbers, so $1 + 1 = 0$ and $2 + 1 = 3$. Multiplication by 0 and 1
+is as usual, and otherwise $2 \cdot 2 = 3$, $2 \cdot 3 = 1$ and
+$3 \cdot 3 = 2$. The row $(a, b) = (1, 1)$, for example, reads
+$1, 1, 0, 3, 2$.
+
+To see that any two columns show every pair exactly once, take the columns
+$\lambda a + b$ and $\mu a + b$ with $\lambda \ne \mu$, and ask which row
+gives them the values $(u, v)$. Subtracting the two equations gives
+$(\lambda - \mu)a = u - v$, so $a = (u - v)/(\lambda - \mu)$ and then
+$b = u - \lambda a$: exactly one row. The column $b$ is the case
+$\lambda = 0$, and pairs involving the first column, $a$, work the same way. The division needs a field. With arithmetic modulo 4,
+where 2 has no inverse, the columns $a + b$ and $3a + b$ differ by $2a$,
+which is always even, so pairs whose values differ by an odd number would
+never appear.
+
+\begin{table}[ht]
+\caption{The orthogonal array $\mathrm{OA}(16,5,4,2)$, transposed: column
+$i$ is test point $i$, row $j$ the kind symbol of variable $j$.}
+\label{tab:oa}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}l*{16}{c}@{}}
+\toprule
+Point & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 & 16 \\
+\midrule
+$v_1 = a$      & 0&0&0&0&1&1&1&1&2&2&2&2&3&3&3&3 \\
+$v_2 = b$      & 0&1&2&3&0&1&2&3&0&1&2&3&0&1&2&3 \\
+$v_3 = a + b$  & 0&1&2&3&1&0&3&2&2&3&0&1&3&2&1&0 \\
+$v_4 = 2a + b$ & 0&1&2&3&2&3&0&1&3&2&1&0&1&0&3&2 \\
+$v_5 = 3a + b$ & 0&1&2&3&3&2&1&0&1&0&3&2&2&3&0&1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+With 16 points no such table has more than five columns
+\cite{HedayatSloaneStufken99}. Beyond five variables, the package fills each
+further column point by point with the kind that covers the most pairs with
+earlier columns not yet covered, so the number of points stays the same and
+the coverage of later pairs becomes partial. Variables that occur inside a
+function with a branch cut, or in a power with a non-integer exponent, take
+the first columns, so up to five of them have full pairwise coverage.
+
+The 48 test points use the rows three times:
+
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Points & Kinds for symbols $0,1,2,3$ & Modulus \\
+\midrule
+1--16 & \texttt{pos}, \texttt{neg}, \texttt{q2}, \texttt{q3} & $[0.2,1)$ \\
+17--32 & \texttt{pos}, \texttt{neg}, \texttt{q2}, \texttt{q3} & $[1,2)$ \\
+33--48 & \texttt{pos}, \texttt{neg}, \texttt{q1}, \texttt{q4} & alternating by variable \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The first two passes concentrate on the left half-plane, where the
+principal cuts of the logarithm and of fractional powers lie; the third
+makes sure all four quadrants appear. A random draw replaces any point at
+which the input has no value, up to 120 draws in all. Each check seeds the
+random state with a fixed value and restores it afterwards, so results are
+reproducible and the user's random sequence does not change.
+
+\subsection{Assumptions}
+
+The check reads \mx|facts()|. A variable declared real or integer, or
+appearing in an inequality, gets a real or integer domain; facts of the form
+$v > c$, $v \ge c$, $v < c$ or $v \le c$ with constant $c$ give bounds, and
+the check rounds integer bounds inward. A real variable without bounds takes
+the sign of its kind, so that sign combinations still appear. Other facts
+among the variables, such as $x > y$, act as filters that a point must
+satisfy. If the check cannot draw half the points under the assumptions,
+the check falls back to unrestricted complex points and reports this at
+\mx|fsdebug >= 1|.
+
+\subsection{Evaluation}
+
+The first version of the check let Maxima evaluate each point, with
+\mx|float| and \mx|rectform|. On the expanded form of $(a+b+c+d+u)^{10}$, which
+has about a thousand terms, \mx|fullsimp| then took 3.9~s instead of about
+0.16~s, because Maxima carries out complex arithmetic symbolically. Applied to a whole
+quotient $p/q$, \mx|rectform| also computed its argument as
+$\arg p - \arg q$, which can fall outside $(-\pi, \pi]$.
+
+The check therefore uses a small evaluator written in Common Lisp. It walks
+the expression bottom-up in double-precision complex arithmetic, so every
+function receives a number. Sums, products, powers, $\exp$, $\log$ and the
+trigonometric and hyperbolic functions map to their Common Lisp
+counterparts, whose branch cuts follow the principal-value conventions
+\cite{Steele90}. Maxima evaluates any other function, such as $\Gamma$ or a
+Bessel function, at the numeric arguments. A result whose imaginary part
+is a signed zero becomes real, so that two equal expressions do not fall on
+opposite sides of a cut through the sign of zero \cite{Kahan87}. A
+negative real raised to a rational power with an odd denominator takes the
+real root, as in Maxima. With the time for the large example back at 0.22~s,
+against 0.16~s unchecked, checking costs about a third there (\cref{tab:times}).
+
+A candidate $c$ agrees with the input $e$ at a point if
+$|c - e| \le 10^{-8}(1 + |e|)$. When a candidate disagrees in double
+precision, Maxima's own bottom-up evaluation recomputes the input and the
+candidate with 40-digit bigfloats, and the check rejects the candidate only
+if the disagreement remains.
+
+We added the real-root rule after a cross-check of the two evaluations. With
+principal roots throughout, the Lisp evaluator agreed with
+$\exp(\tfrac13\log x) \to x^{1/3}$ at every point, and the check accepted the
+rewrite, which Maxima itself evaluates differently: at $x = -8$ the input
+is $1 + \sqrt3\,\mathrm{i}$ and the result is $-2$. Over a grid of 30
+functions at 15 points, 450 pairs in all and including points on the cuts,
+the two evaluations disagreed on 16 pairs before the rule and on 7 after
+it, all on the imaginary axis, which the test points avoid.
+
+\subsection{Unknown functions}
+
+An expression such as $f(\sin^2 x + \cos^2 x)$ has no numeric value. Before
+evaluation the check replaces each unknown function $f$ of $n$ arguments
+(in the sense of \cref{sec:names}) by a fixed stand-in
+\[
+  \varphi_h(a_1,\dots,a_n) = \exp\Bigl(\sum_{k=1}^{n} \gamma_k a_k\Bigr)
+    + \sum_{k=1}^{n} \delta_k a_k^3 + \tfrac12,
+\]
+with rational coefficients $\gamma_k \in [0.3, 0.8)$ and
+$\delta_k \in [0.2, 0.7)$ derived from a hash $h$ of the name of $f$. An
+identity that holds for every $f$ holds for $\varphi_h$. Different names
+usually get different stand-ins, so $f(x) - g(x)$ does not vanish; two names
+whose hashes coincide share one, which would only matter if a transformation
+exchanged the two functions. With this substitution
+$f(\sin^2 x+\cos^2 x) + g((x^2-1)/(x-1))$ simplifies to $f(1) + g(x+1)$.
+
+\subsection{Inputs without a numeric value}
+
+If fewer than three points evaluate, as for an expression containing an
+unevaluated integral, the check cannot compare values. It then accepts a
+candidate only if every transformation on the path from the input is
+value-preserving in the sense of \cref{tab:transforms}. Routines added
+through \mx|fs_custom_simp| never count as value-preserving.
+
+\subsection{What the check does not establish}
+
+The check samples finitely many points. It cannot see a
+difference confined to a set of measure zero, so $(x^2-1)/(x-1) \to x + 1$
+passes, as it does elsewhere in Maxima. Pairwise coverage does not ensure
+that every combination of three kinds appears, and beyond five branch
+variables not even every pair. A wrong rewrite that agrees with the input at
+all 48 points would pass.
+
+%======================================================================
+\section{Beam search}\label{sec:beam}
+%======================================================================
+
+\subsection{Motivation}
+
+In the sweep each transformation sees only the current state. For the
+derivative
+\[
+  \frac{d}{dx}\arctan\frac{x}{\sqrt{1-x^2}}
+  = \frac{(1-x^2)^{-1/2} + x^2(1-x^2)^{-3/2}}{x^2/(1-x^2) + 1},
+\]
+\mx|factor| applied to the input gives $1/\sqrt{1-x^2}$, of size 28. By the
+time the sweep reaches \mx|factor|, earlier transformations have changed the
+state, and the sweep returns $1/(\sqrt{1-x}\,\sqrt{x+1})$, of size 47. Without
+the check it returned $\mathrm{i}/\sqrt{x^2-1}$, of size 29, which differs
+from the input for $|x| > 1$.
+
+\subsection{Algorithm}
+
+The beam search \cite{Lowerre76} keeps a pool of candidates instead of one
+state (\cref{alg:beam}). The pool always contains the input, the
+\emph{anchor}, so every transformation sees the original expression. For a
+width $w \ge 3$ its other members are the $w-2$ best candidates found so far
+and one \emph{uphill} candidate: the best-ranked candidate not already in
+the pool whose size is at most $1+\sigma$ times that of the best, which
+keeps the threshold idea of the sweep. The default width is $w = 4$. Each round applies every
+transformation to every pool member not expanded before. A hash table of
+printed forms skips candidates already seen. The search stops when a round
+adds no new member to the pool, or after four rounds. Ties in size go to
+the candidate found first, so results are reproducible. With $w = 2$ the
+pool holds the anchor and the best candidate, and with $w = 1$ only the best
+candidate, so the search climbs greedily.
+
+\begin{algorithm}[ht]
+\caption{Beam search}\label{alg:beam}
+\begin{algorithmic}[1]
+\Require expression $e$, transformations $T$, width $w$, round limit $R$
+\State $C \gets \{e\}$; $P \gets \{e\}$; $X \gets \emptyset$ \Comment{candidates, pool, expanded}
+\For{$\mathit{round} = 1,\dots,R$}
+  \For{$p \in P \setminus X$}
+    \State $X \gets X \cup \{p\}$
+    \For{$t \in T$}
+      \State $c \gets \mathrm{combine}(t(p))$
+      \If{$c$ not seen before and $c$ passes the check} $C \gets C \cup \{c\}$ \EndIf
+    \EndFor
+  \EndFor
+  \State $P \gets \{e\} \cup \{\text{the $w-2$ best of } C\} \cup \{\text{one uphill candidate}\}$ \Comment{$w \ge 3$}
+  \If{$P \subseteq X$} \textbf{break} \EndIf
+\EndFor
+\State \Return the best element of $C$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{proposition}\label{prop:single}
+Suppose the input has a value at three or more test points, or the check is
+off. Then the beam search returns an expression no larger than
+$\mathrm{combine}(t(e))$ for every $t \in T$ whose result passes the check.
+\end{proposition}
+
+\begin{proof}
+The first round expands the anchor $e$ with every $t \in T$. A result
+$c = \mathrm{combine}(t(e))$ that passes the check either enters $C$ or
+matches an expression the search met earlier in this round. In the second
+case the earlier expression is identical, and since the check depends only
+on the expression, it passed too and is in $C$. The search returns the best
+element of $C$.
+\end{proof}
+
+When the input has no value at enough points, acceptance depends on the
+path. The check rejects a candidate first reached by a transformation that
+is not value-preserving, and the search marks it as seen, so it skips a
+later value-preserving path to the same expression. The proposition can
+then fail; the sweep does not have this property either.
+
+\subsection{Cost}
+
+On the 198 \mx|fullsimp| calls of all seven test files, the beam search was
+never larger than a verified single transformation, while the sweep was
+larger on the derivative above. On the corpus of \cref{sec:validation} it
+changed one result, to a different form of equal size:
+$\cot x \sin 2x$ now gives $\cos 2x + 1$ instead of $2\cos^2 x$, both of
+size 18. The corpus (\cref{sec:corpus}) took 2.1~s instead of 1.2~s. The sweep remains
+available through \mx|fs_search : 'sweep|.
+
+%======================================================================
+\section{Splitting independent parts}\label{sec:split}
+%======================================================================
+
+\subsection{Motivation}
+
+\texttt{fullsimp} chooses one transformation list for the whole expression
+and applies every transformation to all of it. Consider
+\[
+  e = p + \sin^2 x + \cos^2 x, \qquad p = \text{the expanded form of } (a+b+c+d+u)^{10}.
+\]
+The trigonometric term puts the trigonometric transformations in the list.
+\mx|trigsimp| turns the last two terms into $1$, after which \mx|factor| and
+the other transformations work on $p + 1$, a polynomial of degree 10 in five
+variables with about a thousand terms. Both searches returned an expanded
+factorisation of size 20149, the sweep in 8.7~s and the beam search in
+16.2~s. Simplifying the two parts separately gives $(a+b+c+d+u)^{10} + 1$.
+
+\subsection{Partition}
+
+For a sum or product in internal form, \texttt{fullsimp} partitions the terms
+(or factors) by their variables: two terms belong to the same group if they
+share a variable, directly or through other terms. This is the finest
+partition in which no two groups share a variable. The package sets terms
+without variables aside and splits only if at least two groups contain
+variables. It simplifies each group by a recursive call, with a
+transformation list chosen for that group. A polynomial group then sees no
+trigonometric transformations.
+
+\subsection{Constants}
+
+Constants interact with the groups: $1 - \sin^2 x$ is $\cos^2 x$, and
+$2\tan x/(1 + \tan^2 x)$ is $\sin 2x$. Trying the constants alone and with
+each group in turn, as a first version did, still missed identities that
+need a constant in two groups: $1 - \sin^2 x + \tan^2 y +
+1$ gave $\cos^2 x + \tan^2 y + 1$, where the unsplit search finds $\cos^2
+x + \sec^2 y$, and in $2\cos^2 u - \sin^2 x$, where the simplifier has
+already cancelled a $-1$ against a $+1$, there was no constant left to
+place.
+
+Let $c$ be the sum of the constant terms. Each group $g_i$ either keeps its
+own result or takes a \emph{shift} $k_i$, which means the package simplifies
+$g_i + k_i$ in its place; the combination then adds back $c - \sum_i k_i$. Every group
+may take $k_i = c$. A group that contains a trigonometric or hyperbolic
+function may also take $k_i = \pm 1$, which covers the identities with a
+constant term among those functions, such as $\sin^2 + \cos^2 = 1$, $1 +
+\tan^2 = \sec^2$, $\cosh^2 - \sinh^2 = 1$ and $2\cos^2 a - 1 = \cos 2a$.
+The package forms every combination of shifts, and the best wins, ties
+going to the first. The first combination has no shifts, and the next ones
+give $c$ to one group in turn, which is the behaviour of the first version. A group
+whose own result is a constant, such as $\sin^2 y + \cos^2 y$, joins the
+constants first, so $x^2 + 2x + \sin^2 y + \cos^2 y$ gives $(x+1)^2$. In a
+product the shifts are factors, and a group may take the constant factor.
+
+Each shift repeats a group's simplification. For the expanded polynomial
+$p$ above that repetition is the expensive \mx|factor| call splitting is
+meant to avoid: $p + \sin^2 x - 1$ takes 3.0~s when $p$ may take the $-1$. A
+group whose size exceeds 1000 therefore takes no shift, and the same input
+takes 0.5~s.
+
+\subsection{Merging}
+
+\begin{lemma}
+Let $X$ and $Y$ be disjoint sets of variables, $f$ a function of $X$ and $g$
+a function of $Y$, defined on a product of domains. If $f + g$ is constant,
+then $f$ and $g$ are both constant.
+\end{lemma}
+
+\begin{proof}
+Fix $Y = Y_0$. Then $f(X) = h - g(Y_0)$ for all $X$, where $h$ is the
+constant value of $f + g$, so $f$ is constant, and then so is $g$.
+\end{proof}
+
+So groups cannot cancel each other beyond constants. More generally, if the
+whole expression $f + g$ equals another form $F + G$ with $F$ and $G$ in the
+same variables as $f$ and $g$, the lemma applied to $(f - F) + (g - G)$ shows
+that $F - f$ is constant: the forms of the groups can differ from the best
+whole form only by constants, which is what the shifts provide. Products
+follow in the same way through quotients, where the parts do not vanish. They can merge, though: $\log a + \log b$
+becomes $\log ab$, and under assumptions $\sqrt x\sqrt y$ becomes
+$\sqrt{xy}$, across groups. After combining the group results, the package
+runs one more search restricted to \mx|logcontract| and \mx|rootscontract|,
+which stay fast on large expressions. Without this step 6 existing tests
+failed. The package checks the combined result against the whole input, and
+if the check fails it simplifies the input unsplit.
+
+\subsection{Effect and limits}
+
+The example above now returns $(a+b+c+d+u)^{10} + 1$ in 0.44~s, and no
+result of the corpus changes. With the shifts, $1 - \sin^2 x + \tan^2 y +
+1$ gives $\cos^2 x + \sec^2 y$, and $\cosh^2 z - \sin^2 x$ gives $\sinh^2 z
++ \cos^2 x$, which the unsplit search does not find. To compare the two
+paths beyond the corpus, we formed 60 random sums and products of pairs of
+corpus inputs, renaming the variables of the second so that the two share
+none. Splitting gave a smaller result in 6 of them and a larger one in none.
+They took 2.5~s with splitting and 1.5~s without it, most of the difference
+being the shifts. On small inputs the extra simplifications show in
+\cref{tab:times}: splitting doubles or triples the time for the two small
+sums.
+
+The partition can still lose results that need the whole expression. A
+factorisation across groups, such as $(x+1)^2 - y^2 = (x+1-y)(x+1+y)$, is
+out of reach; under the size measure the factored form is larger and
+neither path returns it, but it matters with the preferences of
+\cref{sec:prefer}. The package does not divide constants other than $\pm 1$
+between groups, such as $\tfrac12$ for each. The size
+limit only sees an expression as written, so a short expression that is
+expensive to simplify, such as $(a+b+c+d+u)^{10}$, still takes the
+constants once. Splitting is on by default and controlled by
+\mx|fs_split|.
+
+%======================================================================
+\section{Form preferences}\label{sec:prefer}
+%======================================================================
+
+\subsection{Ranking}
+
+The smallest form is not always the one wanted. A user may want a
+denominator without radicals even if the numerator grows, or exponentials in
+place of trigonometric functions. The option
+\mx|fs_prefer| holds an ordered list of preferences $\pi_1,\dots,\pi_k$.
+Each preference counts its \emph{violations} $v_i(e)$, and candidates are
+ranked by
+\[
+  \rank(e) = \bigl(v_1(e), \dots, v_k(e), \size(e)\bigr)
+\]
+in lexicographic order. A candidate with fewer violations of an earlier
+preference ranks better whatever its size. With the default
+\mx|fs_prefer : []| the rank is $(\size(e))$ and every comparison is the
+size comparison of the previous sections, so results do not change.
+
+A prototype used a weighted sum, $\size(e) + W\sum v_i(e)$, which we did not
+adopt. Any fixed $W$ loses to size on a large enough expression, and the
+threshold rules of both searches compare ratios of sizes, which a large $W$
+distorts.
+
+\subsection{Preferences}
+
+\Cref{tab:prefs} lists the preferences implemented. Counts work on the
+internal form, where a denominator is a power $u^n$ with $n$ a negative
+number. The three preferences about the shape of the expression stop at
+function arguments; the others count everywhere. \mx|rational_denominator|
+adds one transformation, \mx|ratsimp| with \mx|algebraic : true|, which
+rationalises denominators; the others rely on transformations already
+selected for the expressions they apply to. Pairs that cannot both hold,
+\mx|factored| with \mx|expanded| and \mx|exponential| with
+\mx|trigonometric|, raise an error.
+
+\begin{table}[ht]
+\caption{Form preferences and what each counts as a violation.}
+\label{tab:prefs}
+\small
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{0.62\textwidth}@{}}
+\toprule
+Preference & Violation \\
+\midrule
+\mx|rational_denominator| & a denominator that is, or contains, a fractional power \\
+\mx|single_fraction| & a sum with a term that has a denominator; a denominator containing a denominator \\
+\mx|factored| & a sum with variables that \mx|factor| rewrites as a product or power \\
+\mx|expanded| & a product with a sum as a factor; a sum raised to an integer power above 1 \\
+\mx|[avoid, f, ...]| & a call to one of the named functions \\
+\mx|sin_cos| & a call to $\tan$, $\cot$, $\sec$ or $\csc$ \\
+\mx|exponential| & a call to a trigonometric or hyperbolic function \\
+\mx|trigonometric| & a power of $\mathrm{e}$ whose exponent contains $\mathrm{i}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Interaction with the search}
+
+Both searches choose the best candidate, order the pool and accept steps by
+rank. The threshold rules use size alone: a step may raise the number of
+violations, because reaching a preferred form can pass through a less
+preferred one, as when a polynomial needs expanding before it factors
+differently. The returned result is always the best-ranked candidate seen,
+so it ranks no worse than the input, and \cref{prop:single} holds with rank
+in place of size.
+
+Violation counts add over the groups of \cref{sec:split}, so splitting
+respects the ranking, with these adjustments. With \mx|factored| active, the
+package keeps sums whole, so that factorisations across groups stay
+reachable, and with \mx|expanded| active it keeps products whole, so that
+$(x+1)(y+1)$ can expand. With \mx|single_fraction| active, the merging step
+also tries \mx|xthru|, so that fractions in separate groups combine.
+
+\subsection{Examples}
+
+\Cref{tab:prefer-examples} shows results with a single preference active.
+On the 175 inputs of the corpus, with each preference on its own and in both
+searches, no result ranked worse than its input, and between 0
+(\mx|trigonometric|) and 86 (\mx|exponential|) inputs ended with fewer
+violations. With \mx|factored| active, the expanded $(a+b+c+d+u)^{10}$ took
+0.33~s against 0.30~s without it, measured in the same session.
+
+\begin{table}[ht]
+\caption{Results with one preference active.}
+\label{tab:prefer-examples}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Preference & Input & Result \\
+\midrule
+none & $\tan x + \cot x$ & $2\csc 2x$ \\
+\mx|sin_cos| & $\tan x + \cot x$ & $2/\sin 2x$ \\
+\mx|rational_denominator| & $x/(\sqrt{x}+1)$ & $(x^{3/2} - x)/(x - 1)$ \\
+\mx|rational_denominator| & $1/(1+\sqrt2)$ & $\sqrt2 - 1$ \\
+\mx|single_fraction| & $1/x + 1/y$ & $(y + x)/(xy)$ \\
+\mx|factored| & $(x+1)^2 - y^2$ & $-(y - x - 1)(y + x + 1)$ \\
+\mx|expanded| & $(x+1)^2$ & $x^2 + 2x + 1$ \\
+\mx|expanded| & $(x+1)(y+1)$ & $xy + y + x + 1$ \\
+\mx|exponential| & $\cosh x$ & $(\mathrm{e}^x + \mathrm{e}^{-x})/2$ \\
+\mx|trigonometric| & $\mathrm{e}^{\mathrm{i}x}$ & $\mathrm{i}\sin x + \cos x$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The check still applies: with \mx|rational_denominator| active, the check
+stops $1/\sqrt{x^2+2x+1}$ from becoming $1/(x+1)$. Maxima's simplifier
+turns $\sqrt3/3$ back into $1/\sqrt3$, so no search can remove a single
+radical from a denominator.
+
+%======================================================================
+\section{Validation}\label{sec:validation}
+%======================================================================
+
+\subsection{Tests}
+
+Each change added Maxima regression tests, one per scenario in its written
+specification. The package's test files now hold 278 tests: the original
+three files with 15, 112 and 68 tests, and new files for the check (24), the
+beam search (12), splitting (21) and preferences (26). The packaging change
+added three to the first file and one to the check's. The documentation's
+examples run as a further 12 tests. Several further checks run over the
+inputs of these files.
+
+\begin{description}
+\item[Audit of expected results] A separate bottom-up evaluator compares
+  every expected result with its input numerically, applying \mx|rectform|
+  and \mx|float| at each node, with 12 points in each of four
+  modes: all positive, all negative, mixed signs and complex. The audit
+  deliberately does not use the package's check. It found the 11 failures of
+  \cref{sec:check}, and after the change it reports none among the 195 of the
+198 calls of \cref{sec:corpus} that have a numeric value.
+\item[Single transformations] The script applies each transformation,
+  followed by \mx|combine|, to each input, and compares the results that pass
+  the check with the result of \mx|fullsimp|, testing
+  \cref{prop:single}.
+\item[Name collisions] For each of 115 names (every local variable and
+  parameter on the call path, and common single letters) and four
+  expressions in that name, the harness compares \mx|fullsimp| with the name
+  unbound and with it bound to a sentinel value in a block around the call,
+  in both searches, with and without preferences. All 1840 runs agree.
+\item[Renaming] The script renames variables and unknown functions to long
+  names as in \cref{sec:names}.
+\item[Duplicated computations] Where two parts of the code compute the same
+  quantity, we compared their results. This found four faults, all now
+  corrected, among them the evaluator's principal roots
+  (\cref{sec:check}) and a size computed inline by the beam search without
+  the name discount of \eqref{eq:size2}.
+\end{description}
+
+\subsection{Combined effect}
+
+\Cref{tab:corpus,tab:named,tab:times} show the effect of the changes in four
+configurations. C0 is the original sweep, without the check and without
+splitting, but with the corrections of \cref{sec:fstrigsimp-eval}. C1 adds
+the check, C2 replaces the sweep by the beam search, and C3 adds splitting,
+which is the default. The corpus of \cref{sec:corpus} runs without
+assumptions in force.
+
+\begin{table}[ht]
+\caption{The corpus of 175 inputs, of total size 9471, in four
+configurations. Non-identities are results that differ from their input by
+the audit's evaluator. One run each.}
+\label{tab:corpus}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Configuration & Time (s) & Total size of results & Non-identities \\
+\midrule
+C0: sweep, no check & 0.69 & 1869 & 11 \\
+C1: sweep with check & 1.23 & 2099 & 0 \\
+C2: beam search with check & 2.13 & 2099 & 0 \\
+C3: C2 with splitting & 1.95 & 2099 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+From C0 to C1 exactly the 11 results that were not identities change, and
+the total size rises by 230. From C1 to C2 one result changes form, at
+equal size, and from C2 to C3 none changes. The corpus consists of the
+package's own tests, whose expected results come from the sweep;
+the changes of \cref{sec:beam,sec:split} show on the examples of
+\cref{tab:named,tab:times}.
+
+\begin{table}[ht]
+\caption{Size of the result; $p$ is the expanded $(a+b+c+d+u)^{10}$, and an
+asterisk marks a result that differs from its input.}
+\label{tab:named}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Input & Size & C0 & C1 & C2 & C3 \\
+\midrule
+$\frac{d}{dx}\arctan(x/\sqrt{1-x^2})$ & 115 & 29* & 47 & 28 & 28 \\
+$\tan x + \cot x$ & 20 & 18 & 18 & 18 & 18 \\
+$\sqrt{x^2+2x+1}$ & 31 & 6* & 31 & 31 & 31 \\
+$\log a + \log b$ & 20 & 13* & 20 & 20 & 20 \\
+$\frac{1+\cos t}{\sin t} + \frac{\mathrm{e}^y-\mathrm{e}^{-y}}{\mathrm{e}^y+\mathrm{e}^{-y}}$
+  & 92 & 52 & 52 & 29 & 29 \\
+$p$ & 31055 & 23 & 23 & 23 & 23 \\
+$p + \sin^2 x + \cos^2 x$ & 31085 & 20149 & 20149 & 20149 & 28 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\caption{Time, median of three warm runs.}
+\label{tab:times}
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Input & C0 & C1 & C2 & C3 \\
+\midrule
+$\frac{d}{dx}\arctan(x/\sqrt{1-x^2})$ & 1.3\,ms & 4.5\,ms & 16\,ms & 11\,ms \\
+$\tan x + \cot x$ & 4.0\,ms & 9.3\,ms & 16\,ms & 12\,ms \\
+$\sqrt{x^2+2x+1}$ & 0.9\,ms & 2.9\,ms & 2.0\,ms & 1.9\,ms \\
+$\log a + \log b$ & 1.2\,ms & 4.0\,ms & 2.9\,ms & 9.1\,ms \\
+$\frac{1+\cos t}{\sin t} + \frac{\mathrm{e}^y-\mathrm{e}^{-y}}{\mathrm{e}^y+\mathrm{e}^{-y}}$
+  & 11\,ms & 20\,ms & 30\,ms & 60\,ms \\
+$p$ & 0.16\,s & 0.22\,s & 0.31\,s & 0.27\,s \\
+$p + \sin^2 x + \cos^2 x$ & 8.7\,s & 8.7\,s & 16.2\,s & 0.44\,s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%======================================================================
+\section{Limitations and further work}\label{sec:limits}
+%======================================================================
+
+The limits of the check are those listed in \cref{sec:check}. The two evaluations behind it still disagree on the
+imaginary axis, where Maxima's floating-point and bigfloat arctangents take
+opposite sides of the cut; test points avoid the axis, but an argument such
+as $\mathrm{i}x$ with real $x$ reaches it. For inputs without a numeric
+value, \cref{prop:single} can fail, as \cref{sec:beam} describes.
+\mx|fstrigsimp| decides internally which rules to keep by size alone, so
+preferences and a user's own size function affect how its result ranks but
+not which rules it applies. The package keeps the sweep for reproducing
+earlier results; its threshold compares sizes alone, so preferences do not
+steer its larger steps.
+
+Several directions remain open. A list of further preferences, among them
+partial fractions, Horner form, collection in a variable, and rectangular
+or polar complex forms, accompanies the code. Simplification modulo side
+relations such as $x^2 + y^2 = 1$ could use Maxima's \mx|scsimp| and
+\mx|ratsubst| as transformations and the relations as constraints on test
+points. When the check rejects a smaller candidate, the region of test
+points where it failed could go back to the user as a suggested
+assumption, such as $x > -1$. A benchmark corpus drawn from outside the
+package's own tests would show how the changes behave on expressions they
+were not developed against.
+
+\section*{Use of AI tools}
+
+Claude Opus~5.5 (Anthropic), working in Claude Code, produced the changes
+described in
+\cref{sec:fstrigsimp-eval,sec:check,sec:beam,sec:split,sec:prefer}, their
+tests, specifications and documentation, the measurements and the first
+draft of this paper. The author chose which
+problems to address, decided between the design options presented, raised
+several of the problems the paper reports, and approved each change before
+it went into a commit. A second instance of the same model reviewed the
+paper, including its references, and its findings, with a check of the
+references against publisher and library records, led to corrections in
+the code and the text.
+
+\section*{Acknowledgements}
+
+The search described in \cref{sec:original} and the trigonometric rules are
+the work of E.~Majzoub, building on code by D.~Scherfgen. The author thanks
+the Maxima developers and the contributors to the Maxima-discuss mailing
+list, whose discussions informed several of the choices described here.
+
+\begin{thebibliography}{99}
+
+\bibitem{BuchbergerLoos82}
+B.~Buchberger and R.~Loos, \emph{Algebraic simplification}, Computer Algebra:
+Symbolic and Algebraic Computation (B.~Buchberger, G.~E. Collins, and
+R.~Loos, eds., in cooperation with R.~Albrecht), Computing Supplementum,
+vol.~4, Springer, Vienna, 1982, pp.~11--43.
+
+\bibitem{Carette04}
+J.~Carette, \emph{Understanding expression simplification}, Proceedings of
+the 2004 International Symposium on Symbolic and Algebraic Computation
+(ISSAC), ACM, 2004, pp.~72--79.
+
+\bibitem{Cohen97}
+D.~M. Cohen, S.~R. Dalal, M.~L. Fredman, and G.~C. Patton, \emph{The {AETG}
+system: an approach to testing based on combinatorial design}, IEEE
+Transactions on Software Engineering \textbf{23} (1997), no.~7, 437--444.
+
+\bibitem{DueckScheuer90}
+G.~Dueck and T.~Scheuer, \emph{Threshold accepting: a general purpose
+optimization algorithm appearing superior to simulated annealing}, Journal
+of Computational Physics \textbf{90} (1990), no.~1, 161--175.
+
+\bibitem{HedayatSloaneStufken99}
+A.~S. Hedayat, N.~J.~A. Sloane, and J.~Stufken, \emph{Orthogonal arrays:
+theory and applications}, Springer Series in Statistics, Springer, New York,
+1999.
+
+\bibitem{Kahan87}
+W.~Kahan, \emph{Branch cuts for complex elementary functions, or much ado
+about nothing's sign bit}, The State of the Art in Numerical Analysis
+(A.~Iserles and M.~J.~D. Powell, eds.), Clarendon Press, Oxford, 1987,
+pp.~165--211.
+
+\bibitem{Kirkpatrick83}
+S.~Kirkpatrick, C.~D. Gelatt, and M.~P. Vecchi, \emph{Optimization by
+simulated annealing}, Science \textbf{220} (1983), no.~4598, 671--680.
+
+\bibitem{Lowerre76}
+B.~T. Lowerre, \emph{The {HARPY} speech recognition system}, Ph.D. thesis,
+Carnegie Mellon University, 1976.
+
+\bibitem{Macrakis18}
+S.~Macrakis, \emph{Re: What am I missing about the Simplify options?},
+message to the Maxima-discuss mailing list, 25 May 2018.
+
+\bibitem{Majzoub25}
+E.~Majzoub, \emph{Re: defrule/apply1 that hangs Maxima}, message to the
+Maxima-discuss mailing list, 14 December 2025.
+
+\bibitem{fullsimp}
+E.~Majzoub, \emph{fsimp-maxima}, Maxima package,
+\url{https://github.com/QMeqGR/fsimp-maxima}.
+
+\bibitem{fullsimpFork}
+C.~Dawes, \emph{fsimp-maxima}, fork of \cite{fullsimp} with the changes
+described here, \url{https://github.com/cmsd2/fsimp-maxima}.
+
+\bibitem{Maxima}
+Maxima, a computer algebra system, version 5.50.0,
+\url{https://maxima.sourceforge.io}.
+
+\bibitem{Moses71}
+J.~Moses, \emph{Algebraic simplification: a guide for the perplexed},
+Communications of the ACM \textbf{14} (1971), no.~8, 527--537.
+
+\bibitem{Schwartz80}
+J.~T. Schwartz, \emph{Fast probabilistic algorithms for verification of
+polynomial identities}, Journal of the ACM \textbf{27} (1980), no.~4,
+701--717.
+
+\bibitem{Steele90}
+G.~L. Steele~Jr., \emph{Common {L}isp: the language}, 2nd ed., Digital Press,
+1990, Section 12.5.3.
+
+\bibitem{Talon25}
+M.~Talon, \emph{Re: defrule/apply1 that hangs Maxima}, message to the
+Maxima-discuss mailing list, 15 December 2025.
+
+\bibitem{WolframFullSimplify}
+Wolfram Research, \emph{FullSimplify}, Wolfram Language documentation,
+\url{https://reference.wolfram.com/language/ref/FullSimplify.html}.
+
+\bibitem{Zippel79}
+R.~Zippel, \emph{Probabilistic algorithms for sparse polynomials}, Symbolic
+and Algebraic Computation (EUROSAM '79) (E.~W. Ng, ed.), Lecture Notes in
+Computer Science, vol.~72, Springer, 1979, pp.~216--226.
+
+\end{thebibliography}
+
+\end{document}

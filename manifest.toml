@@ -1,0 +1,15 @@
+[package]
+name = "fullsimp"
+version = "0.0.4"
+description = "Search Maxima's simplification routines for the simplest equivalent form of an expression"
+license = "GPL-2.0-or-later"
+entry = "fullsimp.mac"
+repository = "https://github.com/QMeqGR/fsimp-maxima"
+keywords = ["simplification", "trigonometry", "algebra"]
+maxima = ">= 5.47"
+
+[package.authors]
+names = ["Eric Majzoub"]
+
+[test]
+files = ["rtest_fsimp1.mac", "rtest_fsimp2.mac", "rtest_fsimp3.mac", "rtest_fsimp_beam.mac", "rtest_fsimp_check.mac", "rtest_fsimp_prefer.mac", "rtest_fsimp_split.mac"]

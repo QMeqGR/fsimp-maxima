@@ -19,10 +19,26 @@
 
 fsimp_ver:"v0.0.4"$
 
-load("fsimp.lisp")$
-load("fsimp-index.lisp")$
-load("fsimp-index-html.lisp")$
-load("fstrgsimp.mac")$
+/* Companion files load from the directory of this file, so the package
+   works wherever it is installed, with or without docs/ on the search
+   path, and never picks up files from another copy. Without a load path
+   (for example when this file is batched) they load by name. */
+block([fs_dir : if stringp(load_pathname) then pathname_directory(load_pathname) else false],
+  for fs_f in [["fsimp.lisp", "fsimp.lisp"],
+               ["docs/fsimp-index.lisp", "fsimp-index.lisp"],
+               ["docs/fsimp-index-html.lisp", "fsimp-index-html.lisp"],
+               ["fstrgsimp.mac", "fstrgsimp.mac"],
+               ["fscheck.mac", "fscheck.mac"],
+               ["fsprefer.mac", "fsprefer.mac"]] do
+    load(if fs_dir = false then fs_f[2] else sconcat(fs_dir, fs_f[1])))$
+
+/* Maxima's trigsimp, which fullsimp uses, declares a as a pattern variable
+   when it first loads, so a would match anything in the user's own rules.
+   Load it now and remove that declaration, unless a already had one. Its
+   rules are compiled by then, so trigsimp is unaffected. */
+block([fs_had_a : member(matchdeclare, properties(a))],
+  trigsimp(0),
+  if not fs_had_a and member(matchdeclare, properties(a)) then remove(a, matchdeclare))$
 
 /*
 Adapted from David Scherfgen's dssimp.mac code.
@@ -36,16 +52,48 @@ For example, expand should always be before combine, etc.
 
 */
 
+/* Search options. fs_search selects the beam search (fs_beam) or the
+   original sweep (fs_sweep). fs_beam_width and fs_max_rounds bound the
+   beam search. */
+define_variable(fs_search, 'beam, any)$
+define_variable(fs_beam_width, 4, any)$
+define_variable(fs_max_rounds, 4, any)$
+
+fs_check_options() := (
+  if not member(fs_search, ['beam, 'sweep]) then
+    error("fsimp: fs_search must be beam or sweep, found", fs_search),
+  if not (integerp(fs_beam_width) and fs_beam_width >= 1) then
+    error("fsimp: fs_beam_width must be a positive integer, found", fs_beam_width),
+  if not (integerp(fs_max_rounds) and fs_max_rounds >= 1) then
+    error("fsimp: fs_max_rounds must be a positive integer, found", fs_max_rounds),
+  fs_check_prefer())$
+
 fsimp(expr, r) :=
+    block([chk, res],
+      fs_check_options(),
+      if numberp(expr)=true then return(expr),
+      /* candidates are checked against the input, see fscheck.mac */
+      chk : if fs_check then fs_check_setup(expr) else false,
+      if fsdebug>1 and chk#false then print("# equivalence check mode: ",chk[1]),
+      res : if fs_search = 'sweep then fs_sweep(expr, r, chk) else fs_beam(expr, r, chk),
+      /* candidates are ranked by fs_rank, see fsprefer.mac */
+      if fsdebug>=1 then print("fsimp: rank of input", fs_rank(expr), "result", fs_rank(res)),
+      res
+);
+
+/* The original search: sweep the transform list loopmax times, keeping one
+   current state. Steps compare fs_rank; the uphill rule compares size. */
+fs_sweep(expr, r, chk) :=
     block([exprSize, smallestExpr, smallestExprSize, simpdExpr,
       simpdExprSize,origExprSize,L,loopmax:2,sizefactor:0.8,
-      fpprintprec:5],
-      if numberp(expr)=true then return(expr),
+      fpprintprec:5, smallestSafe:true, simpdSafe, exprRank, smallestRank, simpdRank],
       if fsdebug>1 then print("# sizefactor variable: ",sizefactor),
-      origExprSize: exprSize : fscost(expr),
+      exprRank : fs_rank(expr),
+      origExprSize: exprSize : last(exprRank),
       if fsdebug=1 then print("original expression size: ",exprSize),
       smallestExpr : expr,
       smallestExprSize : exprSize,
+      smallestRank : exprRank,
 
       simpdExpr : expr,
       simpdExprSize : exprSize,
@@ -60,31 +108,42 @@ fsimp(expr, r) :=
             block(
              /* always combine after every simp function */
              simpdExpr : combine( r[i](smallestExpr) ),
-             simpdExprSize : fscost(simpdExpr),
+             simpdRank : fs_rank(simpdExpr),
+             simpdExprSize : last(simpdRank),
              if fsdebug>1 then print(r[i],"-- new size -->",simpdExprSize),
              if fsdebug>3 then display(simpdExpr),
 
+             /* a candidate equal to the current state needs no new check */
+             simpdSafe : smallestSafe and
+                         (simpdExpr = smallestExpr or member(r[i], fs_safe_transforms)),
+
              /* if the expression is smaller always take the step */
-             if simpdExprSize <= smallestExprSize then
+             if not fs_rank_less(smallestRank, simpdRank) and
+                (simpdExpr = smallestExpr or fs_accept(chk, simpdExpr, simpdSafe, r[i])) then
              block(
                  smallestExpr : simpdExpr,
                  smallestExprSize : simpdExprSize,
+                 smallestRank : simpdRank,
+                 smallestSafe : simpdSafe,
                  if fsdebug>1 then print(">>>>> redefining smallestExpr: ",smallestExprSize),
-                 if simpdExprSize < exprSize then
+                 if fs_rank_less(simpdRank, exprRank) then
                  block(
                      expr : smallestExpr,
-                     exprSize : smallestExprSize
+                     exprSize : smallestExprSize,
+                     exprRank : smallestRank
                  )
              )
-             else
+             else if fs_rank_less(smallestRank, simpdRank) then
              block([t1],
                t1: (simpdExprSize - smallestExprSize) / smallestExprSize,
                if fsdebug>1 then print("t1=",float(t1)),
-               if t1 < sizefactor then
+               if t1 < sizefactor and fs_accept(chk, simpdExpr, simpdSafe, r[i]) then
                block(
                  if fsdebug>1 then print(">>>>>> trying bigger expr"),
                  smallestExpr : simpdExpr,
-                 smallestExprSize : simpdExprSize
+                 smallestExprSize : simpdExprSize,
+                 smallestRank : simpdRank,
+                 smallestSafe : simpdSafe
              ))
 
          )
@@ -94,16 +153,215 @@ fsimp(expr, r) :=
    return(expr)
 );
 
+/* Beam search. Candidates are records [expr, rank, safe, index], where
+   rank is fs_rank(expr), index is the discovery order and safe says
+   whether every transform on the candidate's path preserves value
+   everywhere. The pool holds the input (the anchor, never evicted, so
+   every transform sees the original), the best-ranked candidates, and one
+   uphill candidate ranked below the best and up to sizefactor larger,
+   which keeps the annealing idea of the sweep. Each round applies every
+   transform to every pool member not expanded before. The search stops
+   when a round adds no new pool member, or after fs_max_rounds rounds.
+   Ties in rank go to the earlier discovery. */
+
+fs_rec_before(a, b) := fs_rank_less(a[2], b[2]) or (a[2] = b[2] and a[4] < b[4])$
+
+fs_beam_pool(cands, anchor, sizefactor) :=
+    block([w : fs_beam_width, sorted, rest, pool, ncheap, best, up],
+      sorted : sort(cands, 'fs_rec_before),
+      if w = 1 then return([first(sorted)]),
+      rest : sublist(sorted, lambda([c], c[4] # anchor[4])),
+      ncheap : min(if w >= 3 then w - 2 else 1, length(rest)),
+      pool : cons(anchor, makelist(rest[k], k, 1, ncheap)),
+      if w >= 3 then (
+        best : first(sorted)[2],
+        up : sublist(rest, lambda([c], fs_rank_less(best, c[2])
+                                       and last(c[2]) <= (1 + sizefactor)*last(best)
+                                       and not member(c[4], map(lambda([p], p[4]), pool)))),
+        if up # [] then pool : endcons(first(up), pool)),
+      pool)$
+
+fs_beam(expr, r, chk) :=
+    block([sizefactor : 0.8, fpprintprec : 5, seen : fs_seen_new(),
+      anchor, cands, pool, expanded : [], n : 0, round : 0, grown : true,
+      c, s, cost, safe, res],
+      anchor : [expr, fs_rank(expr), true, 0],
+      fs_seen_add(seen, string(expr)),
+      cands : [anchor],
+      pool : [anchor],
+      if fsdebug=1 then print("original expression size: ", last(anchor[2])),
+      while grown and round < fs_max_rounds do (
+        round : round + 1,
+        for p in pool do
+          if not member(p[4], expanded) then (
+            expanded : cons(p[4], expanded),
+            for i : 1 thru length(r) do (
+              /* always combine after every simp function */
+              c : combine( r[i](p[1]) ),
+              s : string(c),
+              if fs_seen_add(seen, s) then (
+                cost : fs_rank(c),
+                safe : p[3] and member(r[i], fs_safe_transforms),
+                if fsdebug>1 then print(r[i], "-- new size -->", last(cost)),
+                if fs_accept(chk, c, safe, r[i]) then (
+                  n : n + 1,
+                  cands : endcons([c, cost, safe, n], cands))))),
+        pool : fs_beam_pool(cands, anchor, sizefactor),
+        grown : some(lambda([p], not member(p[4], expanded)), pool),
+        if fsdebug>1 then print("-------------------------- round", round,
+                                "pool sizes:", map(lambda([q], last(q[2])), pool))),
+      if fsdebug>1 then print("# beam search stopped after round", round, ":",
+          if grown then "fs_max_rounds reached" else "no new pool members"),
+      res : first(sort(cands, 'fs_rec_before)),
+      if fsdebug=1 then print("final expr size: ", last(res[2])),
+      res[1]
+);
+
 
 /* Notes:
 1. don't use sqrtdenest. It chokes on subscripted variables like c[1], etc.
 
 */
+/* Options are checked here, before fs_simplist and the split step read
+   fs_prefer, so a bad value gets fsimp's own error message. */
 fsimpall(expr,[remlist]) :=
+   (fs_check_options(),
    if listp (expr) or setp (expr) then
    map(lambda([x],fsimpall(x,[remlist])),expr)
    else if matrixp (expr) then matrixmap(lambda([x],fsimpall(x,[remlist])),expr)
-   else block([
+   else block([ratprint : false], fs_split_simp(expr, remlist)));
+
+/* Splitting of independent terms. When expr is a sum or product whose
+   terms (or factors) fall into two or more groups that share no
+   variables, each group is simplified on its own and the results are
+   combined with the same operator, so a routine suited to one group never
+   runs on the others: factor never sees p^10 + 1 in
+   p^10 + sin(x)^2 + cos(x)^2.
+
+   Constant terms can belong with any group (1 - sin(x)^2 is cos(x)^2,
+   2*tan(x)/(1+tan(x)^2) is sin(2*x)), and an identity may need a constant
+   in each of two groups (1 - sin(x)^2 + 1 + tan(y)^2 is cos(x)^2 +
+   sec(y)^2, and cosh(z)^2 - sin(x)^2 is sinh(z)^2 + cos(x)^2, with the
+   +1 and -1 cancelled). So each group may also take a shift: all the
+   constants, or +1 or -1 when it contains a function whose identities
+   involve a constant. The remaining constant is added back, and the
+   cheapest combination wins.
+
+   Groups with disjoint variables cannot cancel, but they can merge:
+   log(a)+log(b) is log(a*b) and sqrt(x)*sqrt(y) is sqrt(x*y). So the
+   combination gets one more search restricted to the merging routines
+   (logcontract, rootscontract, and xthru when fs_prefer has
+   single_fraction), which stay cheap on large expressions.
+   A factorisation across groups, such as (x+1)^2 - y^2 into
+   (x+1-y)*(x+1+y), is not found unless fs_prefer has factored, which
+   keeps sums whole. fs_split : false turns splitting off. */
+define_variable(fs_split, true, boolean)$
+
+fs_merge_transforms : ['logcontract, 'rootscontract]$
+
+/* Operator and arguments of e in internal form, so that -x and a/b show
+   up as products. */
+fs_op_args(e) := block([inflag : true], [op(e), args(e)])$
+
+/* Partition terms into groups that share no variables. Returns
+   [groups, constants], where constants holds the terms without variables. */
+fs_var_groups(terms) := block([groups : [], consts : [], vs, hit, rest],
+  for term in terms do (
+    vs : setify(listofvars(term)),
+    if emptyp(vs) then consts : endcons(term, consts)
+    else (
+      hit : sublist(groups, lambda([g], not emptyp(intersection(g[1], vs)))),
+      rest : sublist(groups, lambda([g], emptyp(intersection(g[1], vs)))),
+      groups : endcons([apply(union, cons(vs, map(first, hit))),
+                        endcons(term, apply(append, map(second, hit)))], rest))),
+  [map(second, groups), consts])$
+
+/* Groups at most this size may take the constant terms. Larger groups,
+   such as an expanded high-degree polynomial, would repeat their most
+   expensive simplification for each placement. */
+fs_split_small : 1000$
+
+/* Functions whose identities involve a constant term, such as
+   sin(x)^2 + cos(x)^2 = 1, 1 + tan(x)^2 = sec(x)^2 and
+   cosh(x)^2 - sinh(x)^2 = 1. A group with one of them tries the shifts
+   +1 and -1. */
+fs_split_shift_funs : [sin, cos, tan, cot, sec, csc, sinh, cosh, tanh, coth, sech, csch]$
+
+/* Shifts to try for group g of a sum whose constants total c. 0 keeps the
+   group's own result, and a group over fs_split_small takes no shift. */
+fs_split_shifts(g, c) := block([ks : [0]],
+  if fscost(g) > fs_split_small then return(ks),
+  if c # 0 then ks : endcons(c, ks),
+  if some(lambda([f], not freeof(f, g)), fs_split_shift_funs) then
+    for k in [1, -1] do if not member(k, ks) then ks : endcons(k, ks),
+  ks)$
+
+/* Every choice of one entry from each list, in order, so the first
+   choice takes every first entry. */
+fs_split_choices(ls) :=
+  if ls = [] then [[]]
+  else block([rest : fs_split_choices(rest(ls))],
+    apply(append, map(lambda([k], map(lambda([r], cons(k, r)), rest)), first(ls))))$
+
+fs_split_simp(expr, remlist) := block([oa, gc, groups, consts, simp1, parts, keep,
+                                       c, shifts, cache, best, bestrank, combined, merge, chk],
+  if not (fs_split and not atom(expr)) then return(fsimp(expr, fs_simplist(expr, remlist))),
+  oa : fs_op_args(expr),
+  if not member(oa[1], ["+", "*"]) then return(fsimp(expr, fs_simplist(expr, remlist))),
+  /* a factorisation across groups only exists for the whole sum */
+  if oa[1] = "+" and fs_prefers('factored) then return(fsimp(expr, fs_simplist(expr, remlist))),
+  /* and an expansion across groups only exists for the whole product */
+  if oa[1] = "*" and fs_prefers('expanded) then return(fsimp(expr, fs_simplist(expr, remlist))),
+  gc : fs_var_groups(oa[2]),
+  groups : gc[1], consts : gc[2],
+  if length(groups) < 2 then return(fsimp(expr, fs_simplist(expr, remlist))),
+  if fsdebug>=1 then print("fsimp: splitting into", length(groups), "independent groups"),
+  simp1 : lambda([terms], apply(fsimpall, cons(apply(oa[1], terms), remlist))),
+  parts : map(simp1, groups),
+  /* a group that simplifies to a constant joins the constants */
+  keep : sublist_indices(parts, lambda([q], listofvars(q) # [])),
+  consts : append(consts, makelist(parts[j], j, sublist(makelist(j, j, 1, length(parts)),
+                                                        lambda([j], not member(j, keep))))),
+  groups : makelist(groups[j], j, keep), parts : makelist(parts[j], j, keep),
+  c : apply(oa[1], consts),
+  /* a group that simplifies to 0 makes a product 0 */
+  if oa[1] = "*" and c = 0 then return(0),
+  /* each group keeps its own result or takes a shift k, simplifying g + k
+     in a sum and g*k in a product; the rest of the constant is added back */
+  shifts : map(lambda([g], if oa[1] = "+" then fs_split_shifts(apply("+", g), c)
+                           elseif c # 1 and fscost(apply("*", g)) <= fs_split_small then [1, c]
+                           else [1]), groups),
+  if apply("*", map(length, shifts)) > 256 then
+    shifts : map(lambda([ks], sublist(ks, lambda([k], k = 0 or k = 1 or k = c))), shifts),
+  cache : makelist([], length(groups)),
+  best : false,
+  /* best-ranked combination, ties to the earliest */
+  for ch in fs_split_choices(shifts) do block([terms : [], e],
+    for j thru length(groups) do block([k : ch[j], hit],
+      if (oa[1] = "+" and k = 0) or (oa[1] = "*" and k = 1) then terms : endcons(parts[j], terms)
+      else (
+        hit : assoc(k, cache[j]),
+        if hit = false then (hit : simp1(endcons(k, groups[j])), cache[j] : cons(k = hit, cache[j])),
+        terms : endcons(hit, terms))),
+    e : if oa[1] = "+" then apply("+", endcons(c - apply("+", ch), terms))
+        else apply("*", endcons(c / apply("*", ch), terms)),
+    if best = false or fs_rank_less(fs_rank(e), bestrank) then (best : e, bestrank : fs_rank(e))),
+  combined : best,
+  merge : sublist(fs_simplist(expr, remlist),
+                  lambda([tr], member(tr, fs_merge_transforms)
+                               or (tr = 'xthru and fs_prefers('single_fraction)))),
+  if merge # [] then combined : fsimp(combined, merge),
+  /* the groups were checked one by one; check the combination as a whole */
+  if fs_check then (
+    chk : fs_check_setup(expr),
+    if chk[1] = 'numeric and not fs_equivalent(chk, combined) then (
+      if fsdebug>=1 then print("fsimp: split result failed the equivalence check, simplifying unsplit"),
+      return(fsimp(expr, fs_simplist(expr, remlist))))),
+  if fs_rank_less(fs_rank(expr), fs_rank(combined)) then expr else combined)$
+
+/* The list of simplification routines fullsimp uses for expr, minus the
+   routines named in remlist. */
+fs_simplist(expr, remlist) := block([
    trigfuns:[sin,cos,tan,atan,asin,acos,sec,asec,csc,cot,
              cosh,sinh,acosh,asinh,tanh,atanh,csch,coth],
    trigflag:0,expflag:0,
@@ -122,10 +380,15 @@ fsimpall(expr,[remlist]) :=
   if trigflag=1 then simplist: append(triglist,simplist),
   if expflag=1 then simplist: append(explist,simplist),
   if freeof(log,expr)=false then simplist:append(loglist,simplist),
-  if freeof(gamma,expr)=false then (load("gamma_simp.mac"),
+  /* gamma_simp is a share package that defines further functions in the
+     session, so load it only once, and not when its routines are excluded */
+  if freeof(gamma,expr)=false and not member(gamma_simp, remlist) then (fs_load_gamma_simp(),
     simplist:append([gamma_simp],simplist)),
-  if freeof(factorial,expr)=false then (load("gamma_simp.mac"),
+  if freeof(factorial,expr)=false and not member(factorial_simp, remlist) then (fs_load_gamma_simp(),
     simplist:append([factorial_simp],simplist)),
+
+  /* rational_denominator needs a routine that rationalises */
+  if fs_prefers('rational_denominator) then simplist : endcons('fs_rationalize, simplist),
 
   /* user may remove any simplifications by hand */
   if remlist#[] then simplist:fs_exclude(remlist,simplist),
@@ -138,8 +401,7 @@ fsimpall(expr,[remlist]) :=
   if fsdebug=1 then display(fs_custom_simp),
   if properties(fs_custom_simp)#[] then simplist:append(simplist,fs_custom_simp),
 
-  /* call fsimp */
-  fsimp(expr, simplist)
+  simplist
   );
 
 alias(fullsimp,fsimpall);
@@ -151,8 +413,13 @@ declare(fullsimp,evfun);
 /*         Utility functions               */
 /*******************************************/
 
+fs_load_gamma_simp() := if not member(gamma_simp, map(op, functions)) then load("gamma_simp")$
+
 fssl(expr):=slength(string(expr)); /* string length of expr */
-fssize(expr):=conssize(expr)+fssl(expr); /* new cost function */
+/* new cost function. Variable names and the names of functions Maxima
+   has no simplifier for count as one character each, so the cost, and with
+   it the result, does not depend on what the user called them. */
+fssize(expr):=fs_conssize(expr)+fssl(expr)-fs_name_excess(expr);
 fscost(expr):=fssize(expr)$
 
 /* Remove list1 contents from list2 */

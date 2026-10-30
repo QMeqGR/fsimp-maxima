@@ -104,8 +104,9 @@ cos(2*x);
 
 fullsimp( tan(x) * sin(2*x) );
 2 * sin(x)^2;
+/* cos(2*x) + 1 and 2*cos(x)^2 both cost 18; the beam search finds the first one first */
 fullsimp( cot(x) * sin(2*x) );
-2 * cos(x)^2;
+cos(2*x) + 1;
 fullsimp( (1 + sin(x) - cos(x)) / (1 + sin(x) + cos(x)) );
 tan(x/2);
 fullsimp( (sin(x) + sin(3*x)) / (cos(x) + cos(3*x)) );

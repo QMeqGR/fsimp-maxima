@@ -93,6 +93,16 @@ $MAXIMA --no-init --no-verify-html-index  \
        --preload=$buildindex_lsp \
        --batch-string="$BATCH"
 
+# The generated index holds absolute paths and loads through
+# load-html-index, which empties Maxima's own HTML index first. Make the
+# paths relative to the index file, and add the entries to the existing
+# index instead, so HTML help works wherever the package is installed and
+# keeps working for Maxima's built-in functions.
+sed -i.bak \
+    -e 's|"[^"]*/'"${packname}"'_html/|"'"${packname}"'_html/|' \
+    -e 's|(load-html-index html-index)|(let ((dir (maxima::maxima-load-pathname-directory))) (dolist (entry html-index) (destructuring-bind (item path id) entry (setf (gethash item *html-index*) (cons (namestring (merge-pathnames path dir)) id)))))|' \
+    "$OUTPUT" && rm -f "$OUTPUT.bak"
+
 # clean up temporary files from pdf creation
 if [ $debug -eq 0 ]; then
     rm $packname.aux $packname.fn $packname.fns $packname.log $packname.toc \
@@ -110,7 +120,7 @@ cat $packname.texi | grep "(%i" | \
 $MAXIMA -q -b examples.txt > rtest.tmp.out;
 
 cat rtest.tmp.out | grep -v "examples.txt" | grep -v "Loading" \
-    | awk '{for(i=2;i<NF+1;i++){printf("%s ",$i);printf(";\n");}}'\
+    | awk '{for(i=2;i<NF+1;i++){printf("%s ",$i)};printf(";\n");}'\
 	  > rtest_example_$packname.mac;
 
 if [ $debug -eq 0 ]; then

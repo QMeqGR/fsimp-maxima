@@ -1,0 +1,113 @@
+(kill(all), load(fsimp), 0);
+0;
+
+/* Tests for form preferences: one block per scenario in
+   openspec/changes/add-form-preferences/specs/form-preferences/spec.md.
+   Each test sets fs_prefer and resets it to [] before returning. */
+
+/* No preferences by default */
+fs_prefer;
+[];
+
+fullsimp(tan(x) + cot(x));
+2*csc(2*x);
+
+/* Preferences rank before size */
+(fs_prefer : ['sin_cos], r : fullsimp(tan(x) + cot(x)), fs_prefer : [], r);
+2/sin(2*x);
+
+(fs_prefer : ['factored], r : fullsimp(x^2 + 1), fs_prefer : [], r);
+x^2 + 1;
+
+/* Rank is visible */
+(fs_prefer : ['sin_cos, 'rational_denominator], r : fs_rank(cot(x)/sqrt(2)), fs_prefer : [],
+ is(r = [1, 1, fscost(cot(x)/sqrt(2))]));
+true;
+
+is(fs_rank(sin(x)^2) = [fscost(sin(x)^2)]);
+true;
+
+/* Rational denominators */
+(fs_prefer : ['rational_denominator], r : fullsimp(1/(1 + sqrt(2))), fs_prefer : [], r);
+sqrt(2) - 1;
+
+(fs_prefer : ['rational_denominator], r : fullsimp(x/(sqrt(x) + 1)), fs_prefer : [], r);
+(x^(3/2) - x)/(x - 1);
+
+/* radcan's 1/(x+1) is wrong for x < -1, so the check still rejects it */
+(fs_prefer : ['rational_denominator], r : fullsimp(1/sqrt(x^2 + 2*x + 1)), fs_prefer : [],
+ is(r = 1/(x + 1)));
+false;
+
+/* Single fraction */
+(fs_prefer : ['single_fraction], r : fullsimp(x + 1/x), fs_prefer : [], r);
+(x^2 + 1)/x;
+
+/* x and y fall into separate groups, so the merge pass has to combine them */
+(fs_prefer : ['single_fraction], r : fullsimp(1/x + 1/y), fs_prefer : [], r);
+(y + x)/(x*y);
+
+/* Factored and expanded */
+(fs_prefer : ['factored], r : fullsimp(x^3 - x), fs_prefer : [], r);
+(x - 1)*x*(x + 1);
+
+/* with factored, sums are not split, so this factorisation stays reachable */
+(fs_prefer : ['factored], r : fullsimp((x + 1)^2 - y^2), fs_prefer : [], r);
+-((y - x - 1)*(y + x + 1));
+
+(fs_prefer : ['expanded], r : fullsimp((x + 1)^2), fs_prefer : [], r);
+x^2 + 2*x + 1;
+
+/* with expanded, products are not split, so this expansion stays reachable */
+(fs_prefer : ['expanded], r : fullsimp((x + 1)*(y + 1)), fs_prefer : [], r);
+x*y + y + x + 1;
+
+/* Function families */
+(fs_prefer : [['avoid, csc]], r : fullsimp(tan(x) + cot(x)), fs_prefer : [], freeof(csc, r));
+true;
+
+(fs_prefer : ['exponential], r : fullsimp(cosh(x)), fs_prefer : [], r);
+(%e^x + %e^-x)/2;
+
+(fs_prefer : ['trigonometric], r : fullsimp(%e^(%i*x)), fs_prefer : [], r);
+%i*sin(x) + cos(x);
+
+/* Invalid preferences are errors. Options are checked before the split
+   step and the routine list read them, so a sum gets the same message. */
+block([r, msg],
+  fs_prefer : 'shortest, r : errcatch(fullsimp(a + sin(x))), msg : sconcat(first(error)),
+  fs_prefer : [],
+  [r, is(ssearch("fs_prefer", msg) # false)]);
+[[], true];
+
+block([r, msg],
+  fs_prefer : ['shortest], r : errcatch(fullsimp(x)), msg : sconcat(first(error)), fs_prefer : [],
+  [r, is(ssearch("fs_prefer", msg) # false)]);
+[[], true];
+
+block([r, msg],
+  fs_prefer : ['factored, 'expanded], r : errcatch(fullsimp(x)), msg : sconcat(first(error)),
+  fs_prefer : [],
+  [r, is(ssearch("fs_prefer", msg) # false)]);
+[[], true];
+
+block([r, msg],
+  fs_prefer : [['avoid]], r : errcatch(fullsimp(x)), msg : sconcat(first(error)), fs_prefer : [],
+  [r, is(ssearch("fs_prefer", msg) # false)]);
+[[], true];
+
+/* Search guarantees use rank */
+(fs_prefer : ['sin_cos], r : [fs_rank(fullsimp(sec(x)^2 - 1)), fs_rank(sec(x)^2 - 1)],
+ fs_prefer : [], not fs_rank_less(r[2], r[1]));
+true;
+
+(fs_prefer : ['sin_cos], fs_search : 'sweep, r : fullsimp(tan(x) + cot(x)),
+ fs_search : 'beam, fs_prefer : [], freeof(tan, cot, sec, csc, r));
+true;
+
+/* A user cost function applies to both searches */
+(fscost(e) := fssize(e) + (if freeof(csc, e) then 0 else 10^6),
+ r : fullsimp(tan(x) + cot(x)),
+ fscost(e) := fssize(e),
+ freeof(csc, r));
+true;

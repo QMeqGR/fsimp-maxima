@@ -2,12 +2,19 @@
 (let (
 (deffn-defvr-pairs '(
 ; CONTENT: (<INDEX TOPIC> . (<FILENAME> <BYTE OFFSET> <LENGTH IN CHARACTERS> <NODE NAME>))
-("fsdebug" . ("fsimp.info" 2195 179 "Functions and Variables for fsimp"))
-("fullsimp" . ("fsimp.info" 2379 2520 "Functions and Variables for fsimp"))
+("fs_beam_width" . ("fsimp.info" 9520 551 "Functions and Variables for fsimp"))
+("fs_check" . ("fsimp.info" 7228 1792 "Functions and Variables for fsimp"))
+("fs_max_rounds" . ("fsimp.info" 10080 239 "Functions and Variables for fsimp"))
+("fs_prefer" . ("fsimp.info" 11868 2916 "Functions and Variables for fsimp"))
+("fs_rank" . ("fsimp.info" 14993 575 "Functions and Variables for fsimp"))
+("fs_search" . ("fsimp.info" 9109 386 "Functions and Variables for fsimp"))
+("fs_split" . ("fsimp.info" 10324 1459 "Functions and Variables for fsimp"))
+("fsdebug" . ("fsimp.info" 6381 830 "Functions and Variables for fsimp"))
+("fullsimp" . ("fsimp.info" 15609 3707 "Functions and Variables for fsimp"))
 ))
 (section-pairs '(
 ; CONTENT: (<NODE NAME> . (<FILENAME> <BYTE OFFSET> <LENGTH IN CHARACTERS>))
-("Functions and Variables for fsimp" . ("fsimp.info" 2119 2776))
-("Introduction to package fsimp" . ("fsimp.info" 751 1242))
+("Functions and Variables for fsimp" . ("fsimp.info" 6305 12539))
+("Introduction to package fsimp" . ("fsimp.info" 751 5172))
 )))
 (load-info-hashtables (maxima::maxima-load-pathname-directory) deffn-defvr-pairs section-pairs))

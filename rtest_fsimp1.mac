@@ -12,6 +12,15 @@ cot(t/2);
 fullsimp((cos(th)+1)/((%i*sin(ph)-cos(ph))*sin(th)));
 -(%e^(%i*ph)*cot(th/2));
 
+/* fullsimp must not evaluate the variables of its input. r and L are local
+   variables of fsimp, i of fstrigsimp, and p is bound by the caller. */
+[fullsimp((cos(t)+1)/((%i*sin(r)-cos(r))*sin(t))),
+ fullsimp((cos(t)+1)/((%i*sin(L)-cos(L))*sin(t))),
+ fullsimp((cos(t)+1)/((%i*sin(i)-cos(i))*sin(t))),
+ block([p : 12345], fullsimp('((cos(t)+1)/((%i*sin(p)-cos(p))*sin(t)))))];
+[-(%e^(%i*r)*cot(t/2)), -(%e^(%i*L)*cot(t/2)), -(%e^(%i*i)*cot(t/2)),
+ -(%e^(%i*p)*cot(t/2))];
+
 /*    Test number related simplifications   */
 
 fullsimp(46*log(2));
@@ -58,4 +67,37 @@ fullsimp(-x*(y**2 - 1)*(2*y**2*(x**2 - 1)/(a*(x**2 - y**2)**2) + (x**2 - 1)
 
 fullsimp(-x - y - (x + y)^(-1)*y^2 + (x + y)^(-1)*x^2);
 -(2*y);
+
+/* The cost counts each variable, and each name of a function Maxima has
+   no simplifier for, as one character, so renaming them leaves every size
+   unchanged. With the full name lengths counted, alpha tipped the sweep's 80%
+   threshold for larger intermediate results, and the doc example came
+   back unchanged. */
+fullsimp((cos(t)+1)/((%i*sin(alpha)-cos(alpha))*sin(t)));
+-(%e^(%i*alpha)*cot(t/2));
+
+is(fscost(sin(alpha)^2/beta + c[123]) = fscost(sin(a)^2/b + c[1]));
+true;
+
+is(fscost(myfunction(x)^2 + 'other(y)) = fscost(f(x)^2 + 'g(y)));
+true;
+
+/* Loading the package leaves the user's names alone: its pattern
+   variables do not turn a, b or z into wildcards in the user's rules */
+(defrule(fs_rtest_rule, a + x, 0), apply1(b + x, fs_rtest_rule));
+b + x;
+
+/* fullsimp does not print rat's float messages: ratprint is off while the
+   routines run, as a custom routine sees */
+block([old_ratprint : ratprint, r],
+  ratprint : true,
+  fs_custom_simp : [lambda([q], (seen_ratprint : ratprint, q))],
+  fullsimp(0.5*x + 0.25*x^2), fs_custom_simp : [],
+  r : [seen_ratprint, ratprint], ratprint : old_ratprint, r);
+[false, true];
+
+/* Excluding the gamma_simp routines keeps the share package unloaded */
+(fullsimp(gamma(n + 1)/gamma(n), gamma_simp, factorial_simp),
+ member(gamma_simp, map(op, functions)));
+false;
 

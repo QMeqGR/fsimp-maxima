@@ -1,0 +1,53 @@
+schema: spec-driven
+
+context: |
+  fullsimp is a Maxima package (fsimp.mac, fstrgsimp.mac, fsimp.lisp) by Eric Majzoub,
+  adapted from David Scherfgen's dssimp.mac. It searches over Maxima's built-in
+  transforms (ratsimp, factor, radcan, trigsimp, logcontract, rootscontract, ...) and
+  returns the cheapest result by fscost = conssize + string length. The search is a
+  fixed sweep over the transform list, repeated twice (loopmax), that may accept a
+  result up to 80% larger than the current one (sizefactor).
+
+  Upstream is github.com/QMeqGR/fsimp-maxima, GPL-2.0-or-later. Changes from this
+  clone go to Eric as pull requests, one OpenSpec change per pull request. Each change
+  must be reviewable on its own, state which earlier changes it builds on, and keep the
+  existing public interface: fullsimp(expr, [excluded_transforms]), fs_custom_simp,
+  fsdebug.
+
+  Tests are Maxima rtest files (rtest_fsimp1.mac to rtest_fsimp3.mac) run with
+  batch("rtest_fsimp2.mac", 'test). Target Maxima 5.47 or later on any supported Lisp,
+  so no implementation-specific Lisp (no SBCL timeouts, no FFI).
+
+  Style: match the existing Maxima code (block-local variables, fsdebug tracing levels,
+  fs_ prefix for new globals). Plain prose in docs and comments, no em dashes.
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

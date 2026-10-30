@@ -1,0 +1,83 @@
+/* Benchmark behind Tables 5 to 7 of the paper. Run from the repository
+   root, with the configuration name in bc_name and its options set first:
+
+     maxima --very-quiet -r 'load("fsimp")$ bc_name : C0$ fs_check : false$
+       fs_search : sweep$ fs_split : false$ batchload("paper/fsimp_bench.mac")$ quit()$'
+
+   C0 sets fs_check : false, fs_search : sweep and fs_split : false; C1 sets
+   fs_search : sweep and fs_split : false; C2 sets fs_split : false; C3 uses
+   the defaults. The fsimp files must be on the search path, as in
+   tests/run_rtests.sh. Prints CORPUS, NAMED and RES lines. */
+load("stringproc")$ display2d:false$ linel:100000$
+audit_point(mode) := if mode = 'pos then 0.2 + random(1.8)
+  elseif mode = 'neg then -(0.2 + random(1.8))
+  elseif mode = 'mixed then (if evenp(random(2)) then 1 else -1)*(0.2 + random(1.8))
+  else (random(3.4) - 1.7) + %i*(random(2.0) - 1.0)$
+
+/* Numeric value of e at points, evaluated bottom-up so every function gets
+   a number and returns its principal value. */
+audit_value(e, pts) := block([r, errormsg : false],
+  r : errcatch(scanmap(lambda([u], float(rectform(u))), subst(pts, e), bottomup)),
+  if r # [] and numberp(float(cabs(first(r)))) then first(r) else false)$
+
+/* true if e1 and e2 agree at 12 evaluable points, false if any point
+   disagrees, err if no point evaluates. */
+audit_agree(e1, e2, mode) := block([vs : listofvars([e1, e2]), ok : true, pts, v1, v2, good : 0, tries : 0],
+  while good < 12 and tries < 60 do (
+    tries : tries + 1,
+    pts : map(lambda([v], v = audit_point(mode)), vs),
+    v1 : audit_value(e1, pts), v2 : audit_value(e2, pts),
+    if v1 # false and v2 # false then (
+      good : good + 1,
+      if cabs(v1 - v2) > 1e-7 * (1 + cabs(v1)) then ok : false)),
+  if good = 0 then 'err else ok)$
+
+/* The argument of a fullsimp(...) test input, or false for other inputs. */
+br_dir : sconcat(pathname_directory(load_pathname), "../")$
+br_read(path) := block([s : openr(path), line, text : ""],
+  while (line : readline(s)) # false do text : sconcat(text, " ", line),
+  close(s),
+  block([i, j],
+    while (i : ssearch("/*", text)) # false do (
+      j : ssearch("*/", text, 'sequal, i),
+      text : sconcat(substring(text, 1, i), " ", substring(text, j + 2)))),
+  text)$
+br_cases(path) := block([stmts],
+  stmts : sublist(map(lambda([x], strim(" ", x)), split(br_read(path), ";", false)), lambda([x], x # "")),
+  rest(makelist([stmts[2*k - 1], stmts[2*k]], k, 1, floor(length(stmts)/2))))$
+br_arg(s) := block([e : parse_string(s)],
+  if not atom(e) and op(e) = 'fullsimp and length(args(e)) = 1 then first(args(e)) else false)$
+bc_inputs : []$
+for f in ["rtest_fsimp1.mac", "rtest_fsimp2.mac", "rtest_fsimp3.mac"] do
+  for c in br_cases(sconcat(br_dir, f)) do block([inp : br_arg(c[1])],
+    if inp # false then bc_inputs : endcons(inp, bc_inputs))$
+/* identity of result r with input e, by the audit's independent evaluator */
+bc_identity(e, r) := block([rp, rn, rm, rc],
+  rp : audit_agree(e, r, 'pos), rn : audit_agree(e, r, 'neg),
+  rm : audit_agree(e, r, 'mixed), rc : audit_agree(e, r, 'cplx),
+  if rp = 'err and rn = 'err and rm = 'err and rc = 'err then 'err
+  else is(member(rp, [true, 'err]) and member(rn, [true, 'err]) and member(rm, [true, 'err]) and member(rc, [true, 'err])))$
+block([t0, res, tot : 0, inc : 0, cin : 0, cout : 0, state : make_random_state(false)],
+  set_random_state(make_random_state(20261029)),
+  t0 : elapsed_real_time(),
+  res : map(fullsimp, bc_inputs),
+  tot : elapsed_real_time() - t0,
+  for k thru length(bc_inputs) do (
+    cin : cin + fscost(bc_inputs[k]), cout : cout + fscost(res[k]),
+    if bc_identity(bc_inputs[k], res[k]) = false then (inc : inc + 1, print("NONID", bc_name, string(bc_inputs[k]), "->", string(res[k])))),
+  set_random_state(state),
+  print("CORPUS", bc_name, length(bc_inputs), "inputs; time", tot, "; total cost in", cin, "out", cout, "; non-identities", inc),
+  for k thru length(bc_inputs) do print("RES", bc_name, k, fscost(res[k]), string(res[k])))$
+bc_named : [
+  ['atan, (1/sqrt(1-x^2) + x^2/(1-x^2)^(3/2))/(x^2/(1-x^2) + 1)],
+  ['tancot, tan(x) + cot(x)],
+  ['doc, (cos(t)+1)/((%i*sin(alpha)-cos(alpha))*sin(t))],
+  ['sqrtsq, sqrt(x^2+2*x+1)],
+  ['logsum, log(a) + log(b)],
+  ['p10, expand((a+b+c+d+u)^10)],
+  ['p10trig, expand((a+b+c+d+u)^10) + sin(x)^2 + cos(x)^2],
+  ['cottanh, (1+cos(t))/sin(t) + (exp(y)-exp(-y))/(exp(y)+exp(-y))]]$
+for c in bc_named do block([e : c[2], r, ts : []],
+  r : fullsimp(e),
+  for k thru 3 do block([t0 : elapsed_real_time()], fullsimp(e), ts : endcons(elapsed_real_time() - t0, ts)),
+  print("NAMED", bc_name, c[1], "cost", fscost(e), "->", fscost(r), "time", sort(ts)[2], "result", if c[1] = 'p10 or c[1] = 'p10trig then (if fscost(r) < 200 then string(r) else sconcat("[cost ", fscost(r), "]")) else string(r)))$

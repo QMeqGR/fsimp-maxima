@@ -1,0 +1,71 @@
+(kill(all), load(fsimp), 0);
+0;
+
+/* Tests for the beam search: one block per scenario in
+   openspec/changes/add-beam-search/specs/search-strategy/spec.md. */
+
+/* No worse than any single transform. This is diff(atan(x/sqrt(1-x^2)), x)
+   written out; factor alone gives 1/sqrt(1-x^2), which the sweep missed. */
+fullsimp( (1/sqrt(1-x^2) + x^2/(1-x^2)^(3/2))/(x^2/(1-x^2) + 1) );
+1/sqrt(1-x^2);
+
+/* Never costlier than the input */
+block([e : (x^10 - 1)/(x - 1)], is(fscost(fullsimp(e)) <= fscost(e)));
+true;
+
+/* Multi-step trig result */
+fullsimp( tan(x) + cot(x) );
+2*csc(2*x);
+
+/* Sweep mode keeps the old search, which misses the factor result */
+(fs_search : 'sweep,
+ r : fullsimp( (1/sqrt(1-x^2) + x^2/(1-x^2)^(3/2))/(x^2/(1-x^2) + 1) ),
+ fs_search : 'beam, r);
+1/(sqrt(1-x)*sqrt(x+1));
+
+/* Variable names of any length. Both searches must count names the way
+   fscost does, or a long name would change the result, so both agree on
+   the doc example written in alpha. The two factors share no variables,
+   so fs_split : false keeps the expression whole for the search. */
+(fs_split : false, fs_search : 'sweep,
+ r : fullsimp((cos(t)+1)/((%i*sin(alpha)-cos(alpha))*sin(t))),
+ fs_search : 'beam,
+ r : [r, fullsimp((cos(t)+1)/((%i*sin(alpha)-cos(alpha))*sin(t)))],
+ fs_split : true, r);
+[-(%e^(%i*alpha)*cot(t/2)), -(%e^(%i*alpha)*cot(t/2))];
+
+/* Width one */
+(fs_beam_width : 1, r : fullsimp(sin(x)^2 + cos(x)^2), fs_beam_width : 4, r);
+1;
+
+/* Invalid options name the option */
+block([r, msg],
+  fs_beam_width : 0, r : errcatch(fullsimp(x)), msg : sconcat(first(error)), fs_beam_width : 4,
+  [r, is(ssearch("fs_beam_width", msg) # false)]);
+[[], true];
+
+block([r, msg],
+  fs_search : 'other, r : errcatch(fullsimp(x)), msg : sconcat(first(error)), fs_search : 'beam,
+  [r, is(ssearch("fs_search", msg) # false)]);
+[[], true];
+
+/* Deterministic choice between equal costs */
+is(fullsimp(sin(x)^2 + 2*cos(x)^2) = fullsimp(sin(x)^2 + 2*cos(x)^2));
+true;
+
+/* Variables are never evaluated: p is a local variable of the beam search
+   and r, i, e of the sweep and fstrigsimp. Binding them outside fullsimp
+   must not change the result. tests/fsimp_check_collisions.mac covers more names. */
+block([p : 12345, r : 12345, i : 12345, e : 12345],
+  [fullsimp('((cos(t)+1)/((%i*sin(p)-cos(p))*sin(t)))),
+   fullsimp('((cos(t)+1)/((%i*sin(r)-cos(r))*sin(t)))),
+   fullsimp('((cos(t)+1)/((%i*sin(e)-cos(e))*sin(t))))]);
+[-(%e^(%i*p)*cot(t/2)), -(%e^(%i*r)*cot(t/2)), -(%e^(%i*e)*cot(t/2))];
+
+(fs_search : 'sweep,
+ r1 : block([r : 12345, i : 12345, e : 12345],
+   [fullsimp('((cos(t)+1)/((%i*sin(r)-cos(r))*sin(t)))),
+    fullsimp('((cos(t)+1)/((%i*sin(i)-cos(i))*sin(t)))),
+    fullsimp('((cos(t)+1)/((%i*sin(e)-cos(e))*sin(t))))]),
+ fs_search : 'beam, r1);
+[-(%e^(%i*r)*cot(t/2)), -(%e^(%i*i)*cot(t/2)), -(%e^(%i*e)*cot(t/2))];

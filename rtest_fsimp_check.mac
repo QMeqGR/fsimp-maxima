@@ -1,0 +1,108 @@
+(kill(all), load(fsimp), 0);
+0;
+
+/* Tests for the equivalence check (fscheck.mac): one block per scenario in
+   openspec/changes/add-equivalence-check/specs/result-verification/spec.md.
+   numat evaluates bottom-up, so each function returns its principal value. */
+(numat(e, pt) := scanmap(lambda([u], float(rectform(u))), subst(pt, e), bottomup),
+ agree(e1, e2, pt) := is(cabs(numat(e1, pt) - numat(e2, pt)) < 1e-10),
+ 0);
+0;
+
+/* Results equal the input */
+
+block([e : sqrt(x^2 + 2*x + 1), r],
+  r : fullsimp(e), [is(r # x + 1), agree(e, r, [x = -3.0])]);
+[true, true];
+
+is(fullsimp(sqrt(x)*sqrt(x+1) - sqrt(x^2+x)) # 0);
+true;
+
+block([e : diff(atan(x/sqrt(1-x^2)), x), r],
+  r : fullsimp(e), [agree(e, r, [x = 2.0]), agree(e, r, [x = -2.0])]);
+[true, true];
+
+is(fullsimp(log(a) + log(b)) # log(a*b));
+true;
+
+is(fullsimp(log(a) - log(b)) # log(a/b));
+true;
+
+/* Safe simplifications still happen */
+
+fullsimp(sin(x)^2 + cos(x)^2);
+1;
+
+fullsimp((1 + cos(t))/sin(t));
+cot(t/2);
+
+fullsimp(gamma(n+1)/gamma(n));
+n;
+
+/* identity apart from the removable point x = -2 */
+fullsimp(log((x^2 + 3*x + 2)/(x + 2)));
+log(x + 1);
+
+/* Assumptions widen what is accepted */
+
+(assume(x > -1), r : fullsimp(sqrt(x^2 + 2*x + 1)), forget(x > -1), r);
+x + 1;
+
+(assume(x < -1), r : fullsimp(sqrt(x^2 + 2*x + 1)), forget(x < -1),
+ [is(r # x + 1), agree(sqrt(x^2 + 2*x + 1), r, [x = -3.0])]);
+[true, true];
+
+(assume(x > 0, y > 0), r : fullsimp(sqrt(x)*sqrt(y)), forget(x > 0, y > 0), r);
+sqrt(x*y);
+
+/* cannot be sampled: x and y are drawn from [-2, 2] */
+(assume(x > y + 100), r : fullsimp(sqrt(x)*sqrt(y)), forget(x > y + 100), r);
+sqrt(x)*sqrt(y);
+
+/* Expressions with unknown functions are checked */
+
+fullsimp(f(sin(x)^2 + cos(x)^2) + g((x^2 - 1)/(x - 1)));
+f(1) + g(x + 1);
+
+/* Checking can be disabled */
+
+(fs_check : false, r : fullsimp(sqrt(x^2 + 2*x + 1)), fs_check : true, r);
+x + 1;
+
+/* Rejections are visible when debugging */
+
+(load("stringproc"), s : make_string_output_stream(),
+ with_stdout(s, (fsdebug : 1, fullsimp(sqrt(a)*sqrt(b)), fsdebug : 0)),
+ is(ssearch("rejected rootscontract", get_output_stream_string(s)) # false));
+true;
+
+/* Results are reproducible */
+
+is(fullsimp(sin(x)^2 + 2*cos(x)^2) = fullsimp(sin(x)^2 + 2*cos(x)^2));
+true;
+
+(set_random_state(make_random_state(42)), r1 : random(1000),
+ set_random_state(make_random_state(42)), fullsimp(sqrt(a)*sqrt(b)), r2 : random(1000),
+ is(r1 = r2));
+true;
+
+/* Test values follow Maxima's real roots of negative numbers, so a rewrite
+   that only holds on the principal branch is rejected: Maxima evaluates
+   %e^(log(x)/3) at x = -8 as 1 + sqrt(3)*%i, and x^(1/3) as -2. */
+fullsimp(%e^(log(x)/3));
+%e^(log(x)/3);
+
+/* Quoted calls to unknown functions get stand-ins like unquoted ones, so
+   they can be checked numerically. */
+(assume(a > 0, b > 0), r : fullsimp('f(log(a) + log(b))), forget(a > 0, b > 0), r);
+'f(log(a*b));
+
+is(fs_check_setup('f(sin(x)))[1] = 'numeric);
+true;
+
+/* Points where the input has no value are expected; Maxima's error
+   messages for them are not printed */
+(load("stringproc"), s : make_string_output_stream(),
+ with_stdout(s, fullsimp('integrate(f(x), x) + sin(x)^2 + cos(x)^2)),
+ is(ssearch("integrate:", get_output_stream_string(s)) = false));
+true;

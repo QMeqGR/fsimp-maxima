@@ -1,0 +1,94 @@
+/* Form preferences for fullsimp.
+
+   fs_prefer is a list of preferences. Each one counts its violations in
+   an expression, and candidates are ranked by those counts in list order
+   and then by fscost, compared lexicographically. fs_rank(e) returns the
+   rank vector. With fs_prefer : [] the rank is [fscost(e)], so every
+   comparison is the plain cost comparison.
+
+   Counts work on the internal form (inflag : true), where sqrt(x) is
+   x^(1/2), a - b is a + (-1)*b and x/y is x*y^(-1). A denominator is a
+   power u^n with n a negative number. */
+
+define_variable(fs_prefer, [], any)$
+
+fs_prefer_known : ['rational_denominator, 'single_fraction, 'factored, 'expanded,
+                   'sin_cos, 'exponential, 'trigonometric]$
+fs_prefer_opposed : [['factored, 'expanded], ['exponential, 'trigonometric]]$
+
+fs_check_prefer() := block([names],
+  if not listp(fs_prefer) then
+    error("fsimp: fs_prefer must be a list, found", fs_prefer),
+  for p in fs_prefer do
+    if not (member(p, fs_prefer_known) or
+            (listp(p) and length(p) >= 2 and first(p) = 'avoid and every(symbolp, rest(p)))) then
+      error("fsimp: fs_prefer entries must be one of", fs_prefer_known,
+            "or a list [avoid, f1, f2, ...] of function names, found", p),
+  names : sublist(fs_prefer, symbolp),
+  for pair in fs_prefer_opposed do
+    if member(pair[1], names) and member(pair[2], names) then
+      error("fsimp: fs_prefer cannot contain both", pair[1], "and", pair[2]))$
+
+/* true if fs_prefer holds the preference name */
+fs_prefers(name) := member(name, fs_prefer)$
+
+/* rationalising routine used by rational_denominator */
+fs_rationalize(e) := block([algebraic : true], ratsimp(e))$
+
+fs_pf_arith(e) := block([inflag : true], not atom(e) and member(op(e), ["+", "*", "^"]))$
+
+/* Number of subexpressions of e satisfying pred. With intofuns false the
+   walk stops at function arguments and counts only the arithmetic shape. */
+fs_pf_count(pred, e, intofuns) := block([inflag : true],
+  if atom(e) then 0
+  else (if pred(e) then 1 else 0)
+       + (if intofuns or fs_pf_arith(e)
+          then lsum(fs_pf_count(pred, a, intofuns), a, args(e)) else 0))$
+
+fs_pf_denom(u) := block([inflag : true],
+  op(u) = "^" and numberp(part(u, 2)) and part(u, 2) < 0)$
+
+fs_pf_radical(u) := block([inflag : true],
+  op(u) = "^" and numberp(part(u, 2)) and not integerp(part(u, 2)))$
+
+fs_pf_rational_denominator(u) := block([inflag : true],
+  fs_pf_denom(u) and (not integerp(part(u, 2)) or fs_pf_count(fs_pf_radical, part(u, 1), true) > 0))$
+
+fs_pf_single_fraction(u) := block([inflag : true],
+  (op(u) = "+" and some(lambda([t], fs_pf_count(fs_pf_denom, t, false) > 0), args(u)))
+  or (fs_pf_denom(u) and fs_pf_count(fs_pf_denom, part(u, 1), false) > 0))$
+
+fs_pf_factored(u) := block([inflag : true],
+  op(u) = "+" and listofvars(u) # [] and
+  block([f : factor(u)], not atom(f) and member(op(f), ["*", "^"])))$
+
+fs_pf_expanded(u) := block([inflag : true],
+  (op(u) = "*" and some(lambda([t], not atom(t) and op(t) = "+"), args(u)))
+  or (op(u) = "^" and integerp(part(u, 2)) and part(u, 2) > 1
+      and not atom(part(u, 1)) and op(part(u, 1)) = "+"))$
+
+fs_pf_avoid(funs, e) := fs_pf_count(lambda([u], block([inflag : true], member(op(u), funs))), e, true)$
+
+fs_pf_trigonometric(u) := block([inflag : true],
+  op(u) = "^" and part(u, 1) = %e and not freeof(%i, part(u, 2)))$
+
+/* violations of preference p in e */
+fs_violations(p, e) :=
+  if listp(p) then fs_pf_avoid(rest(p), e)
+  elseif p = 'rational_denominator then fs_pf_count(fs_pf_rational_denominator, e, true)
+  elseif p = 'single_fraction then fs_pf_count(fs_pf_single_fraction, e, false)
+  elseif p = 'factored then fs_pf_count(fs_pf_factored, e, false)
+  elseif p = 'expanded then fs_pf_count(fs_pf_expanded, e, false)
+  elseif p = 'sin_cos then fs_pf_avoid([tan, cot, sec, csc], e)
+  elseif p = 'exponential then fs_pf_avoid(fs_split_shift_funs, e)  /* trig and hyperbolic */
+  elseif p = 'trigonometric then fs_pf_count(fs_pf_trigonometric, e, true)
+  else error("fsimp: unknown fs_prefer entry", p)$
+
+fs_rank(e) := endcons(fscost(e), map(lambda([p], fs_violations(p, e)), fs_prefer))$
+
+/* true if rank a is lexicographically smaller than rank b */
+fs_rank_less(a, b) := block([res : false, done : false],
+  for k : 1 thru length(a) while not done do
+    if a[k] < b[k] then (res : true, done : true)
+    elseif a[k] > b[k] then done : true,
+  res)$

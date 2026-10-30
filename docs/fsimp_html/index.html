@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<!-- Created by GNU Texinfo 7.2, https://www.gnu.org/software/texinfo/ -->
+<!-- Created by GNU Texinfo 7.3, https://www.gnu.org/software/texinfo/ -->
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>Top (Package fsimp)</title>
@@ -18,46 +18,41 @@
 <link href="#Introduction-to-package-fsimp" rel="next" title="Introduction to package fsimp">
 <link href="../dir_html/index.html" rel="prev" title="(dir)">
 <style type="text/css">
-<!--
 a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
 div.example {margin-left: 3.2em}
+dt.def-line {font-size: 1rem}
 span:hover a.copiable-link {visibility: visible}
-strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
--->
+strong.def-name {font-family: monospace; font-weight: bold}
 </style>
 
 
 </head>
 
-<body lang="en">
+<body>
 
 
 
 <div class="top-level-extent" id="Top">
-<div class="nav-panel">
-<p>
-Next: <a href="#Introduction-to-package-fsimp" accesskey="n" rel="next">Introduction to package fsimp</a>, Previous: <a href="../dir_html/index.html" accesskey="p" rel="prev">(dir)</a>, Up: <a href="../dir_html/index.html" accesskey="u" rel="up">(dir)</a> &nbsp; [<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</p>
-</div>
+<p class="nav-panel">
+<span class="nav-button"><span class="nav-label">Next: </span><span class="nav-link"><a href="#Introduction-to-package-fsimp" rel="next">Introduction to package fsimp</a></span></span>, <span class="nav-button"><span class="nav-label">Previous: </span><span class="nav-link"><a href="../dir_html/index.html" rel="prev">(dir)</a></span></span>, <span class="nav-button"><span class="nav-label">Up: </span><span class="nav-link"><a href="../dir_html/index.html" rel="up">(dir)</a></span></span><span class="nav-button"> &nbsp; </span><span class="nav-button">[<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</span></p>
 <a class="top" id="SEC_Top"></a>
 
 
 <ul class="mini-toc">
-<li><a href="#Package-fsimp" accesskey="1">Package fsimp</a></li>
-<li><a href="Function-and-Variable-Index.html" accesskey="2">Function and Variable index</a></li>
+<li><a href="#Package-fsimp">Package fsimp</a></li>
+<li><a href="Function-and-Variable-Index.html">Function and Variable index</a></li>
 </ul>
 <div class="chapter-level-extent" id="Package-fsimp">
 <h2 class="chapter"><span>1 Package fsimp<a class="copiable-link" href="#Package-fsimp"> &para;</a></span></h2>
 
 <ul class="mini-toc">
-<li><a href="#Introduction-to-package-fsimp" accesskey="1">Introduction to package fsimp</a></li>
-<li><a href="#Functions-and-Variables-for-fsimp" accesskey="2">Functions and Variables for fsimp</a></li>
+<li><a href="#Introduction-to-package-fsimp">Introduction to package fsimp</a></li>
+<li><a href="#Functions-and-Variables-for-fsimp">Functions and Variables for fsimp</a></li>
 </ul>
 <hr>
 <div class="section-level-extent" id="Introduction-to-package-fsimp">
-<div class="nav-panel">
-<p>
-Next: <a href="#Functions-and-Variables-for-fsimp" accesskey="n" rel="next">Functions and Variables for fsimp</a> &nbsp; [<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</p>
-</div>
+<p class="nav-panel">
+<span class="nav-button"><span class="nav-label">Next: </span><span class="nav-link"><a href="#Functions-and-Variables-for-fsimp" rel="next">Functions and Variables for fsimp</a></span></span><span class="nav-button"> &nbsp; </span><span class="nav-button">[<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</span></p>
 <h3 class="section" id="Introduction-to-package-fsimp-1"><span>1.1 Introduction to package fsimp<a class="copiable-link" href="#Introduction-to-package-fsimp-1"> &para;</a></span></h3>
 
 <p>The <code class="code">fsimp</code> package provides a &rsquo;fullsimp&rsquo; simplification function
@@ -69,13 +64,35 @@ expressions using the core simplification routines for expressions
 invovling trigonometric, logarithmic, exponential, polynomial and
 other functions.
 </p>
-<p>To use the package, place the files in your maxima search path and
+<p>To install the package with mxpm, run <code class="code">mxpm install --path</code> on a
+copy of the repository. Without mxpm, copy the repository into a
+directory under <code class="code">~/.maxima</code>, which Maxima 5.47 and later search,
+or add its directory to <code class="code">file_search_maxima</code> and
+<code class="code">file_search_lisp</code>, or load it by its full path. Then
 </p>
-<p>load(&quot;fsimp.mac&quot;);
+<p><code class="code">load(&quot;fullsimp&quot;);</code>
 </p>
-<p>To simplify an expression <code class="code">expr</code> call
+<p>loads the package. <code class="code">load(&quot;fsimp&quot;)</code> also works. To simplify an
+expression <code class="code">expr</code> call
 </p>
 <p><code class="code">fullsimp(expr);</code>
+</p>
+<p>The functions, variables and rules the package defines all start with
+<code class="code">fs</code>, apart from <code class="code">fullsimp</code> itself, so loading it leaves the
+names a user works with alone. An input with <code class="code">gamma</code> or a factorial
+loads Maxima&rsquo;s <code class="code">gamma_simp</code> share package, which defines functions
+of its own in the session; excluding its routines, as in
+<code class="code">fullsimp(e, gamma_simp, factorial_simp)</code>, keeps it from loading.
+</p>
+<p>Loading the package also undoes one change that Maxima itself makes.
+Maxima&rsquo;s <code class="code">trigsimp</code>, which <code class="code">fullsimp</code> uses, declares <code class="code">a</code> as
+a pattern variable with <code class="code">matchdeclare</code> when it first loads, so that
+<code class="code">a</code> matches any expression in rules the user later defines with
+<code class="code">defrule</code>, <code class="code">tellsimp</code> or <code class="code">let</code>. Loading <code class="code">fsimp.mac</code>
+loads <code class="code">trigsimp</code> at once and removes that declaration, unless
+<code class="code">a</code> already had one. The rules of <code class="code">trigsimp</code> are compiled by
+then, so <code class="code">trigsimp</code> works as before. A user who wants <code class="code">a</code> as a
+pattern variable can declare it again with <code class="code">matchdeclare</code>.
 </p>
 <p>The algorithm begins by searching through an expression for e.g. trig,
 log, exp, etc. and choosing a set of core simplification
@@ -85,23 +102,266 @@ but while it cycles through various core simplification routines
 (several times) it allows the intermediate expression to become
 slightly larger if it ultimately becomes smaller. The output is always
 the smallest size expression, where the size is computed by the lisp
-<code class="code">consize</code> function plus the string length of the expression.
+<code class="code">conssize</code> function plus the string length of the expression, with
+each variable, and each name of a function Maxima has no simplifier for
+(such as an undefined <code class="code">f</code>), counted as one character. Renaming
+variables or such functions therefore leaves the size of every
+expression unchanged.
+</p>
+<p>By default the search keeps a small pool of candidates instead of a
+single one (a beam search). The input expression always stays in the
+pool, so every routine is applied to the original as well as to the
+intermediate results, next to the cheapest candidates found so far and
+one candidate that is allowed to be larger. Each round applies every
+routine to every new member of the pool, and the search stops when a
+round adds nothing new. The result is never larger than what any single
+routine produces from the input. The original single-candidate sweep is
+still available. See <code class="code">fs_search</code>, <code class="code">fs_beam_width</code> and
+<code class="code">fs_max_rounds</code>.
+</p>
+<p>When the expression is a sum or product of parts that share no
+variables, such as a polynomial in <code class="code">a</code> and <code class="code">b</code> plus a
+trigonometric expression in <code class="code">x</code>, each part is simplified on its
+own, so a routine suited to one part never runs on the others. See
+<code class="code">fs_split</code>.
+</p>
+<p>The smallest form is not always the one wanted. The option
+<code class="code">fs_prefer</code> lists form preferences, such as a denominator without
+radicals or a factored polynomial, that count for more than size. See
+<code class="code">fs_prefer</code> and <code class="code">fs_rank</code>.
+</p>
+<p>Some core routines, such as <code class="code">radcan</code>, <code class="code">rootscontract</code> and
+<code class="code">logcontract</code>, rewrite expressions in ways that are only valid for
+part of the complex plane. For example <code class="code">radcan</code> turns
+<code class="code">sqrt(x^2+2*x+1)</code> into <code class="code">x+1</code>, which is wrong for <code class="code">x &lt; -1</code>.
+So <code class="code">fullsimp</code> checks every candidate against the input expression
+numerically, at a fixed set of test points, and discards any candidate
+that disagrees at a point. The test points cover positive and negative
+reals and all four complex quadrants, and they respect the
+<code class="code">assume</code> database and <code class="code">declare</code>d features: after
+<code class="code">assume(x &gt; -1)</code>, <code class="code">fullsimp(sqrt(x^2+2*x+1))</code> returns
+<code class="code">x+1</code>. See <code class="code">fs_check</code>.
+</p>
+<p>The rtest files <code class="code">rtest_fsimp1.mac</code> to <code class="code">rtest_fsimp3.mac</code>,
+<code class="code">rtest_fsimp_check.mac</code>, <code class="code">rtest_fsimp_beam.mac</code>,
+<code class="code">rtest_fsimp_split.mac</code> and <code class="code">rtest_fsimp_prefer.mac</code> test the
+package. <code class="code">tests/run_rtests.sh</code>
+runs each file in its own Maxima process and reports pass counts and
+timings. <code class="code">tests/fsimp_audit_rtests.mac</code> checks that every expected result
+in the rtest files equals its input numerically, independently of
+<code class="code">fs_check</code>. <code class="code">tests/fsimp_compare_single.mac</code> checks that
+<code class="code">fullsimp</code> is never costlier than any single routine applied to the
+input, and <code class="code">tests/fsimp_check_collisions.mac</code> that binding a variable
+outside <code class="code">fullsimp</code> never changes its result, with and without form
+preferences.
 </p>
 <p>E. Majzoub.
 </p>
 <hr>
 </div>
 <div class="section-level-extent" id="Functions-and-Variables-for-fsimp">
-<div class="nav-panel">
-<p>
-Previous: <a href="#Introduction-to-package-fsimp" accesskey="p" rel="prev">Introduction to package fsimp</a> &nbsp; [<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</p>
-</div>
+<p class="nav-panel">
+<span class="nav-button"><span class="nav-label">Previous: </span><span class="nav-link"><a href="#Introduction-to-package-fsimp" rel="prev">Introduction to package fsimp</a></span></span><span class="nav-button"> &nbsp; </span><span class="nav-button">[<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</span></p>
 <h3 class="section" id="Functions-and-Variables-for-fsimp-1"><span>1.2 Functions and Variables for fsimp<a class="copiable-link" href="#Functions-and-Variables-for-fsimp-1"> &para;</a></span></h3>
 
 <dl class="first-defvr def-block">
 <dt class="defvr def-line" id="index-fsdebug"><span class="category-def">Variable: </span><span><strong class="def-name">fsdebug</strong><a class="copiable-link" href="#index-fsdebug"> &para;</a></span></dt>
 <dd><p>Setting the variable <code class="code">fsdebug</code> to 1 will allow the user to see
 the fsimp function operations, list selection of simplification routines, etc.
+With <code class="code">fsdebug</code> at 1 or more, each candidate rejected by the
+equivalence check is printed together with the routine that produced it,
+and a note is printed when the assumptions leave too few test points, in
+which case the check samples without them. fullsimp also reports when
+it splits an expression into independent groups (see <code class="code">fs_split</code>),
+and when the combined result fails the check, in which case it
+simplifies the expression whole, and it prints the rank (see
+<code class="code">fs_rank</code>) of the input and of the result. At 2 or more, the beam
+search also prints the pool sizes after each round and why it stopped.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fcheck"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fcheck"><span class="category-def">Variable: </span><span><strong class="def-name">fs_check</strong><a class="copiable-link" href="#index-fs_005fcheck"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">true</code>
+</p>
+<p>When <code class="code">fs_check</code> is <code class="code">true</code>, <code class="code">fullsimp</code> only returns
+expressions equal in value to its input. It evaluates the input and each
+candidate at the same test points and rejects a candidate that disagrees
+at any of them. The test points are chosen so that every pair of
+variables takes every combination of sign and quadrant, and they follow
+the <code class="code">assume</code> database: a variable with <code class="code">assume(x &gt; 0)</code> is only
+sampled at positive values, so rewrites that hold for positive <code class="code">x</code>
+are accepted. Functions with no numeric definition, such as an undefined
+<code class="code">f(x)</code> or a quoted <code class="code">'f(x)</code>, are replaced by fixed stand-in
+functions for the comparison. Values follow Maxima&rsquo;s own conventions, so
+an odd root of a negative number is its real root: <code class="code">(-8)^(1/3)</code> is
+<code class="code">-2</code>, and a rewrite of <code class="code">%e^(log(x)/3)</code> to <code class="code">x^(1/3)</code> is
+rejected because the two differ for negative <code class="code">x</code>.
+</p>
+<p>When the input cannot be evaluated numerically at all, for example
+because it contains an unevaluated integral, only candidates produced by
+routines that preserve value everywhere (such as <code class="code">ratsimp</code>,
+<code class="code">factor</code> and <code class="code">trigsimp</code>) are accepted. Routines added through
+<code class="code">fs_custom_simp</code> never count as preserving value.
+</p>
+<p>When fewer than half the test points can be drawn under the
+assumptions, for example because they are contradictory or hard to
+satisfy, the check uses points that ignore the assumptions instead.
+</p>
+<p>The check is numeric, so it cannot see differences confined to isolated
+points. <code class="code">(x^2-1)/(x-1)</code> still simplifies to <code class="code">x+1</code>, as it does
+elsewhere in Maxima.
+</p>
+<p>Setting <code class="code">fs_check</code> to <code class="code">false</code> turns the check off and gives
+the results of earlier versions.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fsearch"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fsearch"><span class="category-def">Variable: </span><span><strong class="def-name">fs_search</strong><a class="copiable-link" href="#index-fs_005fsearch"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">beam</code>
+</p>
+<p>Selects the search <code class="code">fullsimp</code> uses. With <code class="code">beam</code>, it runs the
+beam search described in the introduction, bounded by
+<code class="code">fs_beam_width</code> and <code class="code">fs_max_rounds</code>. With <code class="code">sweep</code>, it
+runs the search of earlier versions: two passes over the routine list,
+keeping a single current expression. Any other value is an error.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fbeam_005fwidth"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fbeam_005fwidth"><span class="category-def">Variable: </span><span><strong class="def-name">fs_beam_width</strong><a class="copiable-link" href="#index-fs_005fbeam_005fwidth"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">4</code>
+</p>
+<p>The number of candidates the beam search keeps in its pool: the input,
+<code class="code">fs_beam_width - 2</code> of the cheapest candidates found so far, and one
+candidate up to 80% larger than the cheapest. With a width of 2 the pool
+holds the input and the cheapest candidate. With a width of 1 it holds
+only the cheapest candidate, so the search climbs greedily from the
+input. Larger widths explore more alternatives and take longer. The
+value must be a positive integer.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fmax_005frounds"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fmax_005frounds"><span class="category-def">Variable: </span><span><strong class="def-name">fs_max_rounds</strong><a class="copiable-link" href="#index-fs_005fmax_005frounds"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">4</code>
+</p>
+<p>The largest number of rounds the beam search runs. It usually stops
+earlier, as soon as a round adds no new candidate to the pool. The value
+must be a positive integer.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fsplit"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fsplit"><span class="category-def">Variable: </span><span><strong class="def-name">fs_split</strong><a class="copiable-link" href="#index-fs_005fsplit"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">true</code>
+</p>
+<p>When <code class="code">fs_split</code> is <code class="code">true</code> and the expression is a sum or
+product whose terms fall into two or more groups that share no
+variables, <code class="code">fullsimp</code> simplifies each group on its own and combines
+the results. Terms with no variables, such as a constant <code class="code">1</code>, may
+go with any group: each group either keeps its own result or is
+simplified again with all the constants added, and a group containing a
+trigonometric or hyperbolic function also tries <code class="code">+1</code> and <code class="code">-1</code>,
+with the rest of the constant added back. The cheapest combination is
+kept. So <code class="code">1 - sin(x)^2 + tan(y)^2 + 1</code> gives
+<code class="code">cos(x)^2 + sec(y)^2</code>, and <code class="code">cosh(z)^2 - sin(x)^2</code> gives
+<code class="code">sinh(z)^2 + cos(x)^2</code>. A group that simplifies to a constant joins
+the constants. Afterwards <code class="code">logcontract</code> and <code class="code">rootscontract</code> are
+tried on the combination, which merges forms like <code class="code">log(a) + log(b)</code>
+across groups.
+</p>
+<p>Splitting keeps large independent parts from slowing each other down:
+<code class="code">fullsimp(expand((a+b+c+d+u)^10) + sin(x)^2 + cos(x)^2)</code> returns
+<code class="code">(a+b+c+d+u)^10 + 1</code> in well under a second. For the same reason a
+group larger than 1000 (in the size <code class="code">fullsimp</code> uses) takes no
+shift. The price is that factorisations across groups are not
+found: <code class="code">(x+1)^2 - y^2</code> is not turned into <code class="code">(x+1-y)*(x+1+y)</code>.
+</p>
+<p>Setting <code class="code">fs_split</code> to <code class="code">false</code> simplifies the expression as a
+whole.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005fprefer"></a><dl class="first-defvr def-block">
+<dt class="defvr def-line" id="index-fs_005fprefer"><span class="category-def">Variable: </span><span><strong class="def-name">fs_prefer</strong><a class="copiable-link" href="#index-fs_005fprefer"> &para;</a></span></dt>
+<dd><p>Default value: <code class="code">[]</code>
+</p>
+<p>A list of form preferences. Each preference counts its violations in an
+expression, and <code class="code">fullsimp</code> ranks candidates by those counts, in
+list order, before size: a candidate with fewer violations of an earlier
+preference wins however large it is, and size only decides between
+candidates with equal counts. With <code class="code">[]</code>, the default, results are
+the smallest forms as before. Every candidate still has to pass the
+equivalence check (see <code class="code">fs_check</code>).
+</p>
+<p>The preferences are:
+</p>
+<dl class="table">
+<dt><code class="code">rational_denominator</code></dt>
+<dd><p>No radical in any denominator. While active, <code class="code">fullsimp</code> also tries
+the routine <code class="code">fs_rationalize</code>, which is <code class="code">ratsimp</code> with
+<code class="code">algebraic : true</code> and rationalises denominators. <code class="code">1/(1+sqrt(2))</code> becomes <code class="code">sqrt(2)-1</code>. A single
+radical such as <code class="code">1/sqrt(3)</code> stays, because Maxima itself turns
+<code class="code">sqrt(3)/3</code> back into <code class="code">1/sqrt(3)</code>.
+</p></dd>
+<dt><code class="code">single_fraction</code></dt>
+<dd><p>No sum with a term that has a denominator, and no fraction inside a
+denominator. <code class="code">x + 1/x</code> becomes <code class="code">(x^2+1)/x</code>. Numeric
+coefficients such as the <code class="code">1/2</code> in <code class="code">x/2</code> do not count.
+</p></dd>
+<dt><code class="code">factored</code></dt>
+<dd><p>No sum that <code class="code">factor</code> rewrites as a product or power. While active,
+sums are not split into independent groups (see <code class="code">fs_split</code>), so
+<code class="code">(x+1)^2 - y^2</code> becomes <code class="code">-((y-x-1)*(y+x+1))</code>.
+</p></dd>
+<dt><code class="code">expanded</code></dt>
+<dd><p>No product with a sum as a factor, and no sum raised to an integer power
+above 1. While active, products are not split into independent groups,
+so <code class="code">(x+1)*(y+1)</code> becomes <code class="code">x*y+y+x+1</code>.
+</p></dd>
+<dt><code class="code">[avoid, f1, f2, ...]</code></dt>
+<dd><p>No call to any of the named functions.
+</p></dd>
+<dt><code class="code">sin_cos</code></dt>
+<dd><p>No <code class="code">tan</code>, <code class="code">cot</code>, <code class="code">sec</code> or <code class="code">csc</code>, the same as
+<code class="code">[avoid, tan, cot, sec, csc]</code>. <code class="code">tan(x) + cot(x)</code> becomes
+<code class="code">2/sin(2*x)</code> instead of <code class="code">2*csc(2*x)</code>.
+</p></dd>
+<dt><code class="code">exponential</code></dt>
+<dd><p>No trigonometric or hyperbolic function.
+</p></dd>
+<dt><code class="code">trigonometric</code></dt>
+<dd><p>No <code class="code">%e</code> raised to a power containing <code class="code">%i</code>.
+</p></dd>
+</dl>
+
+<p><code class="code">single_fraction</code>, <code class="code">factored</code> and <code class="code">expanded</code> look at the
+arithmetic shape of the expression and do not count inside function
+arguments. The other preferences count everywhere. <code class="code">factored</code> and
+<code class="code">expanded</code> cannot be used together, and neither can
+<code class="code">exponential</code> and <code class="code">trigonometric</code>. An unknown entry is an
+error.
+</p>
+<p>The result of <code class="code">fullsimp</code> is never ranked worse than its input, and
+never ranked worse than any single routine applied to the input. With
+preferences this means a result can be larger than the input. A
+preference no routine can reach has no effect, and excluding the
+routine a preference needs (by naming it in the call to
+<code class="code">fullsimp</code>, as in <code class="code">fullsimp(e, fs_rationalize)</code>) leaves the
+preference unreachable.
+</p>
+<p>Setting <code class="code">fsdebug</code> to 1 prints the rank of the input and of the
+result.
+</p></dd></dl>
+
+<a class="anchor" id="fs_005frank"></a><dl class="first-deffn def-block">
+<dt class="deffn def-line" id="index-fs_005frank"><span class="category-def">Function: </span><span><strong class="def-name">fs_rank</strong> <var class="def-var-arguments">(<code class="code">expr</code>)</var><a class="copiable-link" href="#index-fs_005frank"> &para;</a></span></dt>
+<dd><p>Returns the list of violation counts of <code class="code">expr</code> for each entry of
+<code class="code">fs_prefer</code>, in order, followed by its size <code class="code">fscost(expr)</code>.
+<code class="code">fullsimp</code> compares candidates by this list. With
+<code class="code">fs_prefer : [sin_cos, rational_denominator]</code>,
+<code class="code">fs_rank(cot(x)/sqrt(2))</code> returns <code class="code">[1, 1, fscost(cot(x)/sqrt(2))]</code>.
+</p>
+<p><code class="code">fscost</code> computes the size as the Lisp <code class="code">conssize</code> plus the
+string length, counting each variable and each undefined function name
+as one character. Redefining <code class="code">fscost</code> changes the size used by both
+searches.
 </p></dd></dl>
 
 <a class="anchor" id="fullsimp"></a><dl class="first-deffn def-block">
@@ -131,7 +391,8 @@ set to <code class="code">true</code>, while the <code class="code">ratsimp</cod
 </p>
 <p>In general, <code class="code">fullsimp</code> tries to find the smallest equivalent
 expression based on the Common Lisp <code class="code">conssize</code> and string size of
-an expression.
+an expression, counting each variable and each undefined function name
+as one character.
 </p>
 <p>The user may manipulate the order of simplifications through
 use of the exclusion option and the custom simplification option.
@@ -155,6 +416,39 @@ command line as shown in the last example below.
                                              2
 </pre></div></div>
 
+<p>The equivalence check keeps rewrites that are not valid for all
+<code class="code">x</code> out of the result, unless assumptions make them valid.
+</p>
+<div class="example">
+<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;)$
+(%i2) fullsimp(sqrt(x^2+2*x+1));
+                                       2
+(%o2)                        sqrt(x  + 2 x + 1)
+(%i3) assume(x&gt;-1);
+(%o3)                              [x &gt; - 1]
+(%i4) fullsimp(sqrt(x^2+2*x+1));
+(%o4)                               x + 1
+</pre></div></div>
+
+<p>Form preferences take priority over size.
+</p>
+<div class="example">
+<div class="group"><pre class="example-preformatted">(%i1) load(&quot;fsimp.mac&quot;)$
+(%i2) fullsimp(x/(sqrt(x)+1));
+                                     x
+(%o2)                           -----------
+                                sqrt(x) + 1
+(%i3) fs_prefer : [rational_denominator];
+(%o3)                       [rational_denominator]
+(%i4) fullsimp(x/(sqrt(x)+1));
+                                   3/2
+                                  x    - x
+(%o4)                             --------
+                                   x - 1
+(%i5) fs_prefer : [];
+(%o5)                                 []
+</pre></div></div>
+
 <p>If you wish to exclude particular simplification routines,
 add them to the arguments of fullsimp as shown below.
 </p>
@@ -171,10 +465,8 @@ add them to the arguments of fullsimp as shown below.
 </div>
 </div>
 <hr>
-<div class="nav-panel">
-<p>
-Next: <a href="#Introduction-to-package-fsimp" accesskey="n" rel="next">Introduction to package fsimp</a>, Previous: <a href="../dir_html/index.html" accesskey="p" rel="prev">(dir)</a>, Up: <a href="../dir_html/index.html" accesskey="u" rel="up">(dir)</a> &nbsp; [<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</p>
-</div>
+<p class="nav-panel">
+<span class="nav-button"><span class="nav-label">Next: </span><span class="nav-link"><a href="#Introduction-to-package-fsimp" rel="next">Introduction to package fsimp</a></span></span>, <span class="nav-button"><span class="nav-label">Previous: </span><span class="nav-link"><a href="../dir_html/index.html" rel="prev">(dir)</a></span></span>, <span class="nav-button"><span class="nav-label">Up: </span><span class="nav-link"><a href="../dir_html/index.html" rel="up">(dir)</a></span></span><span class="nav-button"> &nbsp; </span><span class="nav-button">[<a href="Function-and-Variable-Index.html" title="Index" rel="index">Index</a>]</span></p>
 
 
 
