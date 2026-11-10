@@ -84,16 +84,6 @@ loads Maxima&rsquo;s <code class="code">gamma_simp</code> share package, which d
 of its own in the session; excluding its routines, as in
 <code class="code">fullsimp(e, gamma_simp, factorial_simp)</code>, keeps it from loading.
 </p>
-<p>Loading the package also undoes one change that Maxima itself makes.
-Maxima&rsquo;s <code class="code">trigsimp</code>, which <code class="code">fullsimp</code> uses, declares <code class="code">a</code> as
-a pattern variable with <code class="code">matchdeclare</code> when it first loads, so that
-<code class="code">a</code> matches any expression in rules the user later defines with
-<code class="code">defrule</code>, <code class="code">tellsimp</code> or <code class="code">let</code>. Loading <code class="code">fsimp.mac</code>
-loads <code class="code">trigsimp</code> at once and removes that declaration, unless
-<code class="code">a</code> already had one. The rules of <code class="code">trigsimp</code> are compiled by
-then, so <code class="code">trigsimp</code> works as before. A user who wants <code class="code">a</code> as a
-pattern variable can declare it again with <code class="code">matchdeclare</code>.
-</p>
 <p>The algorithm begins by searching through an expression for e.g. trig,
 log, exp, etc. and choosing a set of core simplification
 routines. Then it runs a poor-man&rsquo;s kind of simulated annealing

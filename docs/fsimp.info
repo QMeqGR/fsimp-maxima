@@ -63,16 +63,6 @@ Maxima's ‘gamma_simp’ share package, which defines functions of its own
 in the session; excluding its routines, as in ‘fullsimp(e, gamma_simp,
 factorial_simp)’, keeps it from loading.
 
-   Loading the package also undoes one change that Maxima itself makes.
-Maxima's ‘trigsimp’, which ‘fullsimp’ uses, declares ‘a’ as a pattern
-variable with ‘matchdeclare’ when it first loads, so that ‘a’ matches
-any expression in rules the user later defines with ‘defrule’,
-‘tellsimp’ or ‘let’.  Loading ‘fsimp.mac’ loads ‘trigsimp’ at once and
-removes that declaration, unless ‘a’ already had one.  The rules of
-‘trigsimp’ are compiled by then, so ‘trigsimp’ works as before.  A user
-who wants ‘a’ as a pattern variable can declare it again with
-‘matchdeclare’.
-
    The algorithm begins by searching through an expression for e.g.
 trig, log, exp, etc.  and choosing a set of core simplification
 routines.  Then it runs a poor-man's kind of simulated annealing
@@ -434,16 +424,16 @@ Appendix A Function and Variable index
 Tag Table:
 Node: Top282
 Node: Introduction to package fsimp629
-Node: Functions and Variables for fsimp6195
-Ref: fs_check7229
-Ref: fs_search9110
-Ref: fs_beam_width9521
-Ref: fs_max_rounds10081
-Ref: fs_split10325
-Ref: fs_prefer11869
-Ref: fs_rank14994
-Ref: fullsimp15610
-Node: Function and Variable Index19388
+Node: Functions and Variables for fsimp5570
+Ref: fs_check6604
+Ref: fs_search8485
+Ref: fs_beam_width8896
+Ref: fs_max_rounds9456
+Ref: fs_split9700
+Ref: fs_prefer11244
+Ref: fs_rank14369
+Ref: fullsimp14985
+Node: Function and Variable Index18763
 
 End Tag Table
 

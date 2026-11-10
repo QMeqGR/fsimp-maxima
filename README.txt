@@ -36,16 +36,6 @@ Maxima's ‘gamma_simp’ share package, which defines functions of its own
 in the session; excluding its routines, as in ‘fullsimp(e, gamma_simp,
 factorial_simp)’, keeps it from loading.
 
-   Loading the package also undoes one change that Maxima itself makes.
-Maxima's ‘trigsimp’, which ‘fullsimp’ uses, declares ‘a’ as a pattern
-variable with ‘matchdeclare’ when it first loads, so that ‘a’ matches
-any expression in rules the user later defines with ‘defrule’,
-‘tellsimp’ or ‘let’.  Loading ‘fsimp.mac’ loads ‘trigsimp’ at once and
-removes that declaration, unless ‘a’ already had one.  The rules of
-‘trigsimp’ are compiled by then, so ‘trigsimp’ works as before.  A user
-who wants ‘a’ as a pattern variable can declare it again with
-‘matchdeclare’.
-
    The algorithm begins by searching through an expression for e.g.
 trig, log, exp, etc.  and choosing a set of core simplification
 routines.  Then it runs a poor-man's kind of simulated annealing
@@ -374,24 +364,24 @@ Appendix A Function and Variable index
 * Menu:
 
 * fs_rank:                               Functions and Variables for fsimp.
-                                                              (line 272)
+                                                              (line 262)
 * fullsimp:                              Functions and Variables for fsimp.
-                                                              (line 284)
+                                                              (line 274)
 
 * Menu:
 
 * fs_beam_width:                         Functions and Variables for fsimp.
-                                                              (line 166)
+                                                              (line 156)
 * fs_check:                              Functions and Variables for fsimp.
-                                                              (line 122)
+                                                              (line 112)
 * fs_max_rounds:                         Functions and Variables for fsimp.
-                                                              (line 178)
+                                                              (line 168)
 * fs_prefer:                             Functions and Variables for fsimp.
-                                                              (line 212)
+                                                              (line 202)
 * fs_search:                             Functions and Variables for fsimp.
-                                                              (line 157)
+                                                              (line 147)
 * fs_split:                              Functions and Variables for fsimp.
-                                                              (line 185)
+                                                              (line 175)
 * fsdebug:                               Functions and Variables for fsimp.
-                                                              (line 108)
+                                                              (line  98)
 
