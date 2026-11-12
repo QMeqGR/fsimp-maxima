@@ -9,7 +9,7 @@ keywords = ["simplification", "trigonometry", "algebra"]
 maxima = ">= 5.47"
 
 [package.authors]
-names = ["Eric Majzoub"]
+names = ["Eric Majzoub", "David Scherfgen", "Chris Dawes"]
 
 [test]
 files = ["rtest_fsimp1.mac", "rtest_fsimp2.mac", "rtest_fsimp3.mac", "rtest_fsimp_beam.mac", "rtest_fsimp_check.mac", "rtest_fsimp_prefer.mac", "rtest_fsimp_split.mac"]
