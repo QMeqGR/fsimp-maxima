@@ -16,11 +16,11 @@ expressions using the core simplification routines for expressions
 invovling trigonometric, logarithmic, exponential, polynomial and other
 functions.
 
-   To install the package with mxpm, run ‘mxpm install --path’ on a copy
-of the repository.  Without mxpm, copy the repository into a directory
-under ‘~/.maxima’, which Maxima 5.47 and later search, or add its
-directory to ‘file_search_maxima’ and ‘file_search_lisp’, or load it by
-its full path.  Then
+   To install the package with mxpm, run ‘mxpm install fullsimp’.
+Without mxpm, copy the repository into a directory under ‘~/.maxima’,
+which Maxima 5.47 and later search, or add its directory to
+‘file_search_maxima’ and ‘file_search_lisp’, or load it by its full
+path.  Then
 
    ‘load("fullsimp");’
 
@@ -91,7 +91,7 @@ never costlier than any single routine applied to the input, and
 ‘tests/fsimp_check_collisions.mac’ that binding a variable outside
 ‘fullsimp’ never changes its result, with and without form preferences.
 
-   E. Majzoub.
+   E. Majzoub and C. Dawes.
 
 1.2 Functions and Variables for fsimp
 =====================================

@@ -49,8 +49,8 @@ expressions using the core simplification routines for expressions
 invovling trigonometric, logarithmic, exponential, polynomial and
 other functions.
 
-To install the package with mxpm, run @code{mxpm install --path} on a
-copy of the repository. Without mxpm, copy the repository into a
+To install the package with mxpm, run @code{mxpm install fullsimp}.
+Without mxpm, copy the repository into a
 directory under @code{~/.maxima}, which Maxima 5.47 and later search,
 or add its directory to @code{file_search_maxima} and
 @code{file_search_lisp}, or load it by its full path. Then
@@ -130,7 +130,7 @@ input, and @code{tests/fsimp_check_collisions.mac} that binding a variable
 outside @code{fullsimp} never changes its result, with and without form
 preferences.
 
-E. Majzoub.
+E. Majzoub and C. Dawes.
 
 @node Functions and Variables for fsimp, , Introduction to package fsimp, Top
 @section Functions and Variables for fsimp
